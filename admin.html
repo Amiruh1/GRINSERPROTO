@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grinser · Panel de empresa</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#16467a">
+  <link rel="icon" href="img/logo-grinser.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="admin-body">
+  <div id="guard" class="guard"><p class="muted">Cargando…</p></div>
+
+  <div id="admin" class="admin-shell" hidden>
+    <aside class="as-side" id="admin-menu" aria-label="Menú del panel">
+      <a href="admin.html" class="as-brand"><img src="img/logo-grinser.png" alt="Grinser, panel de empresa" width="180" height="56"></a>
+      <span class="as-section-title">Operación empresa</span>
+      <nav class="as-nav">
+        <button type="button" class="as-link" data-tab="ventas"><i data-icon="cart" data-size="19"></i> Ventas</button>
+        <button type="button" class="as-link on" data-tab="productos"><i data-icon="box" data-size="19"></i> Catálogo admin</button>
+        <button type="button" class="as-link" data-tab="categorias"><i data-icon="grid" data-size="19"></i> Categorías</button>
+        <button type="button" class="as-link" data-tab="usuarios"><i data-icon="users" data-size="19"></i> Usuarios y roles</button>
+        <a class="as-link" href="index.html"><i data-icon="store" data-size="19"></i> Ver tienda</a>
+      </nav>
+      <button type="button" class="as-logout" data-logout><i data-icon="logout" data-size="18"></i> Salir</button>
+    </aside>
+    <div class="as-backdrop" data-menu-close></div>
+
+    <div class="as-main">
+      <header class="as-top">
+        <button type="button" class="icon-btn as-menu-btn" data-menu aria-controls="admin-menu" aria-label="Abrir menú"><i data-icon="menu" data-size="20"></i></button>
+        <h1 id="as-title">Catálogo admin</h1>
+        <span class="as-user" id="as-user"></span>
+      </header>
+
+      <main class="as-content">
+        <div class="stats" id="stats"></div>
+
+        <!-- Productos -->
+        <section id="tab-productos" class="tab">
+          <div class="toolbar">
+            <label class="search search-sm"><i data-icon="search" data-size="16"></i><span class="sr-only">Buscar producto</span><input id="p-q" type="search" placeholder="Buscar producto…"></label>
+            <div class="toolbar-actions">
+              <button type="button" class="btn" id="p-export" title="Descarga js/productos.js con el catálogo actual"><i data-icon="download" data-size="16"></i> Exportar productos.js</button>
+              <button type="button" class="btn" id="p-reset"><i data-icon="refresh" data-size="16"></i> Restablecer</button>
+              <button type="button" class="btn btn-primary" id="p-new"><i data-icon="plus" data-size="16"></i> Nuevo producto</button>
+            </div>
+          </div>
+          <p class="note">Los cambios se guardan en este navegador. Para publicarlos en GitHub Pages, exporta <b>productos.js</b> y reemplaza el archivo <code>js/productos.js</code> del repositorio.</p>
+          <div class="table-wrap"><table class="table" id="p-table"></table></div>
+        </section>
+
+        <!-- Ventas -->
+        <section id="tab-ventas" class="tab" hidden>
+          <div class="toolbar sales-toolbar">
+            <div><h2 class="tab-heading">Gestión de ventas</h2><p class="muted">Monitorea pedidos y actualiza su estado.</p></div>
+            <div class="toolbar-actions">
+              <button type="button" class="btn" id="s-export"><i data-icon="download" data-size="16"></i> Exportar CSV</button>
+              <button type="button" class="btn" id="s-refresh"><i data-icon="refresh" data-size="16"></i> Actualizar</button>
+            </div>
+          </div>
+          <div class="stats sales-stats" id="sales-stats"></div>
+          <div class="sales-panel">
+            <div class="sales-panel-head"><div><h3>Pedidos registrados</h3><p>Expande cada pedido para revisar sus productos.</p></div><button type="button" class="link-btn" id="s-clear">Limpiar filtros</button></div>
+            <div class="sales-filters">
+              <label>Buscar cliente<input id="s-client" type="search" placeholder="Nombre, correo o código"></label>
+              <label>Buscar producto<input id="s-product" type="search" placeholder="Producto o código"></label>
+              <label>Estado de pedido<select id="s-status"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="pagado">Pagado</option><option value="enviado">Enviado</option><option value="entregado">Entregado</option><option value="cancelado">Cancelado</option></select></label>
+            </div>
+            <div class="sales-periods" role="group" aria-label="Filtrar por fecha">
+              <button type="button" class="period-btn" data-period="hoy">Hoy</button>
+              <button type="button" class="period-btn" data-period="7dias">7 días</button>
+              <button type="button" class="period-btn" data-period="mes">Mes</button>
+              <button type="button" class="period-btn on" data-period="todo">Todo</button>
+              <label class="date-range"><span class="sr-only">Desde</span><input id="s-from" type="date" aria-label="Desde"></label>
+              <span class="date-separator">—</span>
+              <label class="date-range"><span class="sr-only">Hasta</span><input id="s-to" type="date" aria-label="Hasta"></label>
+            </div>
+            <div class="table-wrap"><table class="table sales-table" id="s-table"></table></div>
+          </div>
+        </section>
+
+        <!-- Categorías -->
+        <section id="tab-categorias" class="tab" hidden>
+          <div class="toolbar">
+            <div><h2 class="tab-heading">Categorías</h2><p class="muted">Organiza cómo se muestran los productos en la tienda.</p></div>
+            <div class="toolbar-actions">
+              <button type="button" class="btn" id="c-export" title="Descarga js/categorias.js con las categorías actuales"><i data-icon="download" data-size="16"></i> Exportar categorías.js</button>
+              <button type="button" class="btn btn-primary" id="c-new"><i data-icon="plus" data-size="16"></i> Nueva categoría</button>
+            </div>
+          </div>
+          <p class="note">Los cambios se guardan en este navegador. Para publicarlos en la tienda, exporta categorías.js y reemplaza js/categorias.js.</p>
+          <div class="table-wrap"><table class="table" id="c-table"></table></div>
+        </section>
+
+        <!-- Usuarios -->
+        <section id="tab-usuarios" class="tab" hidden>
+          <div class="toolbar">
+            <label class="search search-sm"><i data-icon="search" data-size="16"></i><span class="sr-only">Buscar usuario</span><input id="u-q" type="search" placeholder="Buscar por nombre o correo…"></label>
+            <div class="toolbar-actions">
+              <button type="button" class="btn btn-primary" id="u-new"><i data-icon="plus" data-size="16"></i> Nuevo usuario</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table class="table" id="u-table"></table></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Formulario de producto -->
+  <dialog id="p-dialog" class="dlg" aria-labelledby="p-dlg-title">
+    <form method="dialog" id="p-form" novalidate>
+      <header class="dlg-head"><h2 id="p-dlg-title">Producto</h2><button type="button" class="icon-btn" data-dlg-close aria-label="Cerrar"><i data-icon="x" data-size="18"></i></button></header>
+      <div class="dlg-body form-grid">
+        <label class="span-2">Nombre<input name="nombre" required maxlength="120"></label>
+        <label>Categoría<select name="categoria" id="p-cat"></select></label>
+        <label>Marca<input name="marca" maxlength="60"></label>
+        <label>Precio (S/)<input name="precio" type="number" min="0.1" step="0.01" required></label>
+        <label>Precio de oferta (opcional)<input name="precio_oferta" type="number" min="0" step="0.01"></label>
+        <label>Stock<input name="stock" type="number" min="0" step="1" required></label>
+        <label class="check"><input name="activo" type="checkbox" checked> Visible en la tienda</label>
+        <label class="span-2">Descripción<textarea name="descripcion" rows="3" maxlength="400"></textarea></label>
+        <label class="span-2">URL de imagen (opcional)<input name="imagen" placeholder="img/productos/mi-producto.jpg o https://…" maxlength="400"></label>
+        <p class="err span-2" id="p-err" role="alert" hidden></p>
+      </div>
+      <footer class="dlg-foot"><button type="button" class="btn" data-dlg-close>Cancelar</button><button class="btn btn-primary" value="ok">Guardar</button></footer>
+    </form>
+  </dialog>
+
+  <!-- Movimiento de inventario -->
+  <dialog id="stock-dialog" class="dlg stock-dialog" aria-labelledby="stock-title">
+    <form method="dialog" id="stock-form" novalidate>
+      <header class="stock-head">
+        <span class="stock-head-icon"><i data-icon="refresh" data-size="22"></i></span>
+        <div><h2 id="stock-title">Movimiento de stock</h2><p id="stock-product-name"></p></div>
+        <button type="button" class="stock-close" data-dlg-close aria-label="Cerrar"><i data-icon="x" data-size="18"></i></button>
+      </header>
+      <div class="dlg-body stock-body">
+        <div class="stock-preview">
+          <div><small>Stock actual</small><b id="stock-current">0</b></div>
+          <i data-icon="arrow-right" data-size="18"></i>
+          <div><small>Quedará en</small><b id="stock-after">0</b></div>
+          <div class="stock-low-note"><small>Alerta de poco stock</small><b>5 o menos</b></div>
+        </div>
+        <fieldset class="stock-fieldset">
+          <legend>Tipo de movimiento</legend>
+          <div class="stock-types">
+            <label class="stock-type"><input type="radio" name="tipo" value="entrada" checked><span><b>Entrada</b><small>Suma unidades</small></span></label>
+            <label class="stock-type"><input type="radio" name="tipo" value="salida"><span><b>Salida</b><small>Resta unidades</small></span></label>
+            <label class="stock-type"><input type="radio" name="tipo" value="ajuste"><span><b>Ajuste</b><small>Fija el stock exacto</small></span></label>
+          </div>
+        </fieldset>
+        <div class="form-grid stock-inputs">
+          <label>Cantidad<input name="cantidad" type="number" min="1" step="1" value="1" required></label>
+          <label>Motivo<input name="motivo" maxlength="120" required placeholder="Ej. Compra a proveedor"></label>
+        </div>
+        <p class="err" id="stock-err" role="alert" hidden></p>
+        <div class="stock-history">
+          <h3>Historial de movimientos</h3>
+          <div class="table-wrap"><table class="table" id="stock-history-table"></table></div>
+        </div>
+      </div>
+      <footer class="dlg-foot"><button type="button" class="btn" data-dlg-close>Cancelar</button><button type="submit" class="btn btn-primary">Aplicar movimiento</button></footer>
+    </form>
+  </dialog>
+
+  <!-- Categoría -->
+  <dialog id="c-dialog" class="dlg" aria-labelledby="c-dlg-title">
+    <form method="dialog" id="c-form" novalidate>
+      <header class="dlg-head"><h2 id="c-dlg-title">Nueva categoría</h2><button type="button" class="icon-btn" data-dlg-close aria-label="Cerrar"><i data-icon="x" data-size="18"></i></button></header>
+      <div class="dlg-body form-grid">
+        <label class="span-2">Nombre<input name="nombre" required minlength="3" maxlength="60" placeholder="Ej. Plotter"></label>
+        <label class="span-2">Icono<select name="icono"><option value="box">Caja</option><option value="copier">Fotocopiadora</option><option value="drop">Tinta</option><option value="wrench">Repuesto</option><option value="printer">Equipo de impresión</option><option value="file">Papel y accesorios</option></select></label>
+        <p class="err span-2" id="c-err" role="alert" hidden></p>
+      </div>
+      <footer class="dlg-foot"><button type="button" class="btn" data-dlg-close>Cancelar</button><button type="submit" class="btn btn-primary">Guardar categoría</button></footer>
+    </form>
+  </dialog>
+
+  <!-- Formulario de usuario -->
+  <dialog id="u-dialog" class="dlg" aria-labelledby="u-dlg-title">
+    <form method="dialog" id="u-form" novalidate>
+      <header class="dlg-head"><h2 id="u-dlg-title">Nuevo usuario</h2><button type="button" class="icon-btn" data-dlg-close aria-label="Cerrar"><i data-icon="x" data-size="18"></i></button></header>
+      <div class="dlg-body form-grid">
+        <label class="span-2">Nombre completo<input name="nombre" required maxlength="80"></label>
+        <label class="span-2">Correo<input name="email" type="email" required maxlength="120"></label>
+        <label>Contraseña<input name="password" type="password" minlength="8" maxlength="64" required autocomplete="new-password"></label>
+        <label>Rol<select name="rol"><option value="cliente">Cliente</option><option value="admin">Administrador</option></select></label>
+        <p class="err span-2" id="u-err" role="alert" hidden></p>
+      </div>
+      <footer class="dlg-foot"><button type="button" class="btn" data-dlg-close>Cancelar</button><button class="btn btn-primary" value="ok">Crear usuario</button></footer>
+    </form>
+  </dialog>
+
+  <script src="js/productos.js"></script>
+  <script src="js/categorias.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

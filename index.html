@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Grinser · Tienda</title>
+  <meta name="description" content="Grinser EIRL – Grupo Innova Service: impresoras, fotocopiadoras, tóner, tintas y repuestos en Lima.">
+  <meta name="theme-color" content="#215f9a">
+  <link rel="icon" href="img/logo-grinser.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#tienda">Saltar a los productos</a>
+
+  <!-- ── Cabecera ─────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="wrap hdr-main">
+      <a href="#inicio" class="brand" data-nav="inicio"><img src="img/logo-grinser.png" alt="Grinser EIRL – Grupo Innova Service" width="168" height="53"></a>
+      <form class="hdr-search" role="search" id="search-form">
+        <label for="q" class="sr-only">Buscar productos</label>
+        <input id="q" type="search" placeholder="Buscar por producto o marca…" autocomplete="off">
+        <button type="submit" aria-label="Buscar"><i data-icon="search" data-size="18"></i></button>
+      </form>
+      <div id="user-area" class="account"></div>
+    </div>
+    <nav class="hdr-nav" aria-label="Principal">
+      <div class="wrap hdr-nav-in">
+        <div class="cat-menu">
+          <button type="button" id="cat-toggle" class="cat-toggle" aria-expanded="false" aria-controls="cat-drop">
+            <i data-icon="menu" data-size="18"></i><span>Categorías</span><i data-icon="chevron-down" data-size="16"></i>
+          </button>
+          <div id="cat-drop" class="cat-drop" hidden></div>
+        </div>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="#inicio" data-nav="inicio">Inicio</a></li>
+          <li><a href="#tienda" data-nav="todas">Tienda</a></li>
+          <li><a href="#tienda" data-nav="ofertas" class="hot">Ofertas</a></li>
+          <li><a href="#empresa" data-nav="empresa">Empresa</a></li>
+          <li><a href="#servicio-tecnico" data-nav="servicio-tecnico">Servicio Técnico</a></li>
+          <li class="nav-product">
+            <button type="button" class="nav-product-toggle" aria-expanded="false" aria-controls="nav-product-drop">
+              Productos <i data-icon="chevron-down" data-size="15"></i>
+            </button>
+            <div class="nav-product-drop" id="nav-product-drop" hidden>
+              <a href="#tienda" data-nav="fotocopiadoras"><i data-icon="copier" data-size="17"></i>Fotocopiadoras</a>
+              <a href="#tienda" data-nav="toner"><i data-icon="drop" data-size="17"></i>Tóner</a>
+              <a href="#tienda" data-nav="repuestos"><i data-icon="wrench" data-size="17"></i>Repuestos</a>
+              <a href="#tienda" data-nav="plotter"><i data-icon="printer" data-size="17"></i>Plotter</a>
+            </div>
+          </li>
+        </ul>
+        <button type="button" id="cart-btn" class="cart-pill" aria-label="Abrir carrito">
+          <span class="cart-ic"><i data-icon="cart" data-size="20"></i><b id="cart-count">0</b></span>
+          <span id="cart-sum">S/ 0.00</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ── Carrusel ───────────────────────────────────────────────────── -->
+    <section id="inicio" class="wrap hero-wrap" aria-roledescription="carrusel" aria-label="Promociones">
+      <div class="hero" id="hero">
+        <article class="slide is-active" aria-roledescription="diapositiva" aria-label="1 de 3">
+          <div class="slide-copy">
+            <h1>Ofertas en <em>impresión</em></h1>
+            <p>Descuentos en tóner, tintas, repuestos y equipos multifuncionales.</p>
+            <a href="#tienda" class="btn btn-primary btn-lg" data-nav="ofertas">Ver ofertas <i data-icon="arrow-right" data-size="18"></i></a>
+          </div>
+          <div class="slide-art" aria-hidden="true">
+            <span class="orbit o1"></span><span class="orbit o2"></span><span class="orbit o3"></span>
+            <span class="spark"></span>
+            <span class="bubble b1 ricoh">RICOH</span>
+            <span class="bubble b2 hp">hp</span>
+            <span class="bubble b3 canon">CANON</span>
+            <span class="bubble b4 konica">KONICA<br>MINOLTA</span>
+          </div>
+        </article>
+        <article class="slide" aria-roledescription="diapositiva" aria-label="2 de 3">
+          <div class="slide-copy">
+            <h2 class="h1">Fotocopiadoras para tu <em>empresa</em></h2>
+            <p>Equipos multifuncionales con instalación y soporte de nuestro servicio técnico.</p>
+            <a href="#tienda" class="btn btn-primary btn-lg" data-nav="fotocopiadoras">Ver fotocopiadoras <i data-icon="arrow-right" data-size="18"></i></a>
+          </div>
+          <div class="slide-art" aria-hidden="true">
+            <span class="orbit o1"></span><span class="orbit o2"></span><span class="orbit o3"></span>
+            <span class="art-icon"><i data-icon="copier" data-size="84"></i></span>
+            <span class="bubble b1 ricoh">RICOH</span>
+            <span class="bubble b2 canon">CANON</span>
+            <span class="bubble b4 konica">KONICA<br>MINOLTA</span>
+          </div>
+        </article>
+        <article class="slide" aria-roledescription="diapositiva" aria-label="3 de 3">
+          <div class="slide-copy">
+            <h2 class="h1">Más de 15 años <em>contigo</em></h2>
+            <p>Soluciones para equipos de copiado de todas las marcas. Visítanos en nuestras tiendas de Lima.</p>
+            <a href="#empresa" class="btn btn-primary btn-lg" data-nav="empresa">Conócenos <i data-icon="arrow-right" data-size="18"></i></a>
+          </div>
+          <div class="slide-art" aria-hidden="true">
+            <span class="orbit o1"></span><span class="orbit o2"></span>
+            <span class="art-photo"><img src="img/tienda-jr-lampa.jpg" alt="" loading="lazy"></span>
+            <span class="bubble b2 years"><b>+15</b>años</span>
+          </div>
+        </article>
+        <button type="button" class="hero-arrow prev" data-slide="-1" aria-label="Anterior"><i data-icon="chevron-left" data-size="20"></i></button>
+        <button type="button" class="hero-arrow next" data-slide="1" aria-label="Siguiente"><i data-icon="chevron-right" data-size="20"></i></button>
+        <div class="hero-dots" role="group" aria-label="Elegir diapositiva"></div>
+      </div>
+    </section>
+
+    <!-- ── Beneficios ─────────────────────────────────────────────────── -->
+    <section class="wrap" aria-label="Beneficios">
+      <ul class="perks">
+        <li><span class="perk-ic"><i data-icon="truck" data-size="20"></i></span><span><b>Envíos a todo el Perú</b><small>Lima y provincias</small></span></li>
+        <li><span class="perk-ic"><i data-icon="headset" data-size="20"></i></span><span><b>Atención personalizada</b><small>Te asesoramos en tu compra</small></span></li>
+        <li><span class="perk-ic"><i data-icon="shield" data-size="20"></i></span><span><b>Productos originales</b><small>Garantía de marca</small></span></li>
+        <li><span class="perk-ic"><i data-icon="card" data-size="20"></i></span><span><b>Pagos seguros</b><small>Yape, Plin y transferencia</small></span></li>
+      </ul>
+    </section>
+
+    <!-- ── Categorías ─────────────────────────────────────────────────── -->
+    <section class="wrap section" aria-labelledby="cats-title">
+      <div class="section-head">
+        <div><span class="kicker">Explora</span><h2 id="cats-title">Nuestras categorías</h2></div>
+        <a href="#tienda" class="see-all" data-nav="todas">Ver toda la tienda <i data-icon="arrow-right" data-size="16"></i></a>
+      </div>
+      <div class="cat-cards" id="cat-cards"></div>
+    </section>
+
+    <!-- ── Catálogo ───────────────────────────────────────────────────── -->
+    <section id="tienda" class="wrap section catalog" tabindex="-1" aria-labelledby="shop-title">
+      <div class="section-head">
+        <div><span class="kicker">Tienda</span><h2 id="shop-title">Nuestros productos</h2></div>
+        <label class="sort">
+          <span>Ordenar</span>
+          <select id="sort">
+            <option value="relevancia">Relevancia</option>
+            <option value="precio-asc">Menor precio</option>
+            <option value="precio-desc">Mayor precio</option>
+            <option value="nombre">Nombre (A-Z)</option>
+          </select>
+        </label>
+      </div>
+      <div id="cat-chips" class="chips" aria-label="Filtrar por categoría"></div>
+      <p id="result-info" class="muted result-info" aria-live="polite"></p>
+      <div id="grid" class="grid"></div>
+    </section>
+
+    <!-- ── Servicio técnico ───────────────────────────────────────────── -->
+    <section id="servicio-tecnico" class="service-section" tabindex="-1" aria-labelledby="service-title">
+      <div class="wrap service-layout">
+        <div class="service-copy">
+          <span class="service-kicker"><i data-icon="wrench" data-size="16"></i> Servicio técnico especializado</span>
+          <h2 id="service-title">Tu equipo en buenas manos.</h2>
+          <p>Diagnóstico, reparación y mantenimiento para fotocopiadoras y equipos de impresión. Nuestro equipo te ayuda a reducir interrupciones y mantener tu negocio en marcha.</p>
+          <ul class="service-points">
+            <li><i data-icon="check" data-size="17"></i> Atención para distintas marcas</li>
+            <li><i data-icon="check" data-size="17"></i> Técnicos con experiencia</li>
+            <li><i data-icon="check" data-size="17"></i> Repuestos y mantenimiento</li>
+            <li><i data-icon="check" data-size="17"></i> Soporte para empresas</li>
+          </ul>
+          <div class="service-actions">
+            <button type="button" class="btn btn-service" data-quote-open>Solicitar cotización <i data-icon="arrow-right" data-size="17"></i></button>
+            <span>Cuéntanos qué necesita tu equipo</span>
+          </div>
+        </div>
+        <figure class="service-visual">
+          <img class="service-photo" src="img/servicio-tecnico.png" alt="Afiche de servicio técnico Grinser: técnico reparando una fotocopiadora" width="447" height="447" loading="lazy">
+        </figure>
+      </div>
+      <div class="wrap service-benefits">
+        <article><span><i data-icon="search" data-size="20"></i></span><div><b>Diagnóstico claro</b><small>Revisamos el equipo y te orientamos sobre el siguiente paso.</small></div></article>
+        <article><span><i data-icon="refresh" data-size="20"></i></span><div><b>Mantenimiento preventivo</b><small>Ayudamos a cuidar el rendimiento y la vida útil de tus equipos.</small></div></article>
+        <article><span><i data-icon="headset" data-size="20"></i></span><div><b>Atención personalizada</b><small>Cuéntanos tu caso para coordinar la atención adecuada.</small></div></article>
+      </div>
+    </section>
+
+    <!-- ── Empresa ────────────────────────────────────────────────────── -->
+    <section id="empresa" class="section" tabindex="-1" aria-labelledby="empresa-title">
+      <div class="about-band">
+        <div class="wrap about-band-in">
+          <div>
+            <span class="kicker kicker-light">Quiénes somos</span>
+            <h2 id="empresa-title">Empresa</h2>
+          </div>
+          <p>Nos especializamos en soluciones para equipos de copiado de todas las marcas. Desde hace más de 15 años brindamos soporte a importantes empresas del Perú.</p>
+          <div class="about-stat"><b>+15</b><span>años de<br>experiencia</span></div>
+        </div>
+      </div>
+      <div class="wrap">
+        <div class="values">
+          <article class="value">
+            <span class="value-ic"><i data-icon="handshake" data-size="24"></i></span>
+            <h3>Nuestro compromiso</h3>
+            <p>Satisfacer las necesidades de nuestros clientes con un trabajo profesional y ético, garantizando la durabilidad y el buen funcionamiento de sus equipos.</p>
+          </article>
+          <article class="value">
+            <span class="value-ic"><i data-icon="target" data-size="24"></i></span>
+            <h3>Misión</h3>
+            <p>Lograr la satisfacción integral de nuestros clientes internos y externos, promoviendo la armonía en todas las áreas y garantizando un soporte tecnológico confiable y en mejora continua.</p>
+          </article>
+          <article class="value">
+            <span class="value-ic"><i data-icon="eye" data-size="24"></i></span>
+            <h3>Visión</h3>
+            <p>Ser una empresa referente en el mercado, que responde a las necesidades y expectativas de todo tipo de empresas con productos y servicios de calidad que mejoran el día a día en oficinas y hogares.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Nuestras tiendas ───────────────────────────────────────────── -->
+    <section id="tiendas" class="wrap section stores-section" tabindex="-1" aria-labelledby="tiendas-title">
+      <div class="section-head section-head-center">
+        <div><span class="kicker">Visítanos</span><h2 id="tiendas-title">Nuestras tiendas</h2></div>
+      </div>
+      <div class="stores" id="stores"></div>
+    </section>
+  </main>
+
+  <!-- ── Pie de página ─────────────────────────────────────────────────── -->
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <div class="footer-info">
+        <img src="img/logo-grinser-transparente.png" alt="Grinser EIRL – Grupo Innova Service" width="210" height="66">
+        <nav class="footer-links" aria-label="Enlaces del pie">
+          <a href="#inicio" data-nav="inicio">Inicio</a>
+          <a href="#tienda" data-nav="todas">Tienda</a>
+          <a href="#tienda" data-nav="ofertas">Ofertas</a>
+          <a href="#empresa" data-nav="empresa">Empresa</a>
+          <a href="#servicio-tecnico" data-nav="servicio-tecnico">Servicio Técnico</a>
+          <a href="#tiendas" data-nav="tiendas">Nuestras tiendas</a>
+          <a class="wa-text-link" target="_blank" rel="noopener">Contáctenos</a>
+        </nav>
+        <ul class="footer-contact">
+          <li><i data-icon="pin" data-size="18"></i><span id="f-dir"></span></li>
+          <li><i data-icon="phone" data-size="18"></i><a id="f-tel"></a></li>
+          <li><i data-icon="mail" data-size="18"></i><a id="f-mail"></a></li>
+        </ul>
+      </div>
+      <div class="footer-map">
+        <iframe title="Ubicación de Grinser: Jr. Lampa 960, Lima" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+          src="https://maps.google.com/maps?q=Jr.%20Lampa%20960%2C%20Lima%2015001&z=16&output=embed"></iframe>
+      </div>
+    </div>
+    <div class="footer-bottom"><div class="wrap">© <span id="year"></span> Todos los derechos reservados por Grinser S.A.C.</div></div>
+  </footer>
+
+  <dialog class="quote-dialog" id="quote-dialog" aria-labelledby="quote-title">
+    <div class="quote-modal-head">
+      <div><span class="quote-eyebrow">Servicio técnico</span><h2 id="quote-title">Solicita una cotización</h2></div>
+      <button type="button" class="quote-close" data-quote-close aria-label="Cerrar formulario"><i data-icon="x" data-size="20"></i></button>
+    </div>
+    <form class="quote-form" id="quote-form">
+      <p class="quote-intro">Completa estos datos para solicitar atención por WhatsApp.</p>
+      <div class="quote-fields">
+        <label>Nombre y apellidos<input name="nombre" autocomplete="name" required minlength="3" maxlength="100" placeholder="Tu nombre"></label>
+        <label>Teléfono<input name="telefono" type="tel" autocomplete="tel" required minlength="7" maxlength="20" placeholder="999 999 999"></label>
+        <label>Tipo de equipo
+          <select name="equipo" required>
+            <option value="" selected disabled>Selecciona una opción</option>
+            <option>Fotocopiadora</option><option>Plotter</option><option>Otro equipo</option>
+          </select>
+        </label>
+        <label class="quote-field-wide">Cuéntanos qué necesitas<textarea name="detalle" required minlength="10" maxlength="1000" rows="3" placeholder="Marca, modelo y descripción del problema o servicio solicitado"></textarea></label>
+      </div>
+      <p class="quote-privacy">Al continuar, se abrirá WhatsApp con estos datos para enviar tu solicitud. No se guardan en esta página.</p>
+      <button type="submit" class="btn btn-service quote-submit">Continuar por WhatsApp <i data-icon="arrow-right" data-size="17"></i></button>
+    </form>
+  </dialog>
+
+  <!-- ── WhatsApp ──────────────────────────────────────────────────────── -->
+  <div class="wa" id="wa">
+    <div class="wa-bubble" id="wa-bubble" hidden>
+      <button type="button" class="wa-bubble-close" aria-label="Cerrar mensaje"><i data-icon="x" data-size="14"></i></button>
+      <b>¡Hola! 👋</b>
+      <p>¿Buscas tóner, repuestos o una impresora? Escríbenos y te asesoramos.</p>
+    </div>
+    <a class="wa-btn" id="wa-btn" target="_blank" rel="noopener" aria-label="Escríbenos por WhatsApp">
+      <span class="wa-ic"></span>
+      <span class="wa-copy"><small>¿Necesitas ayuda?</small><b>Escríbenos</b></span>
+    </a>
+  </div>
+
+  <!-- ── Carrito ───────────────────────────────────────────────────────── -->
+  <div id="cart" class="drawer" hidden>
+    <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="cart-title">
+      <header class="drawer-head">
+        <h2 id="cart-title"><i data-icon="cart" data-size="20"></i> Tu carrito</h2>
+        <button type="button" class="icon-btn drawer-close" data-close-cart aria-label="Cerrar carrito"><i data-icon="x" data-size="18"></i></button>
+      </header>
+      <div id="cart-body" class="drawer-body"></div>
+      <footer id="cart-foot" class="drawer-foot" hidden>
+        <div class="row" id="cart-save"><span>Ahorras</span><span id="cart-save-v" class="save"></span></div>
+        <div class="row total"><span>Total</span><strong id="cart-total"></strong></div>
+        <button type="button" id="checkout" class="btn btn-primary btn-block"></button>
+        <button type="button" id="cart-clear" class="link-btn">Vaciar carrito</button>
+      </footer>
+    </aside>
+  </div>
+
+  <script src="js/productos.js"></script>
+  <script src="js/categorias.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/store.js"></script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+'use strict';
+// Grinser · utilidades comunes: almacenamiento local, formato, íconos y avisos.
+// Todo se guarda en el navegador (localStorage): no hay servidor.
+(function () {
+  const GR = (window.GR = window.GR || {});
+  const PREFIX = 'grinser_';
+
+  GR.read = (k, d) => {
+    try { const v = JSON.parse(localStorage.getItem(PREFIX + k)); return v ?? d; } catch { return d; }
+  };
+  GR.write = (k, v) => {
+    try { if (v == null) localStorage.removeItem(PREFIX + k); else localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch {}
+  };
+  GR.uid = (p = 'id') => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  GR.money = (n) => 'S/ ' + Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  GR.esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ── Catálogo ───────────────────────────────────────────────────────────
+  const DEFAULT_CATEGORIAS = window.GRINSER_CATEGORIAS || [
+    { id: 'fotocopiadoras', nombre: 'Fotocopiadoras', icon: 'copier' },
+    { id: 'toner', nombre: 'Tóner y tintas', icon: 'drop' },
+    { id: 'repuestos', nombre: 'Repuestos', icon: 'wrench' },
+    { id: 'plotter', nombre: 'Plotter', icon: 'printer' },
+    { id: 'papeleria', nombre: 'Papel y accesorios', icon: 'file' },
+  ];
+  const storedCategories = GR.read('categorias', null);
+  GR.CATEGORIAS = Array.isArray(storedCategories) ? storedCategories : DEFAULT_CATEGORIAS;
+  GR.saveCategories = (categories) => GR.write('categorias', categories);
+  GR.cat = (id) => GR.CATEGORIAS.find((c) => c.id === id)
+    || (id === 'impresoras' ? { id, nombre: 'Equipos de impresión', icon: 'printer' } : { id, nombre: id || 'Sin categoría', icon: 'box' });
+  GR.precioFinal = (p) => (p.precio_oferta && p.precio_oferta < p.precio ? p.precio_oferta : p.precio);
+  GR.enOferta = (p) => GR.precioFinal(p) < p.precio;
+
+  // Los productos editados en el panel quedan en este navegador; si no hay cambios se usa js/productos.js.
+  GR.getProducts = () => GR.read('productos', null) || (window.GRINSER_PRODUCTOS || []).map((p) => ({ ...p }));
+  GR.saveProducts = (list) => GR.write('productos', list);
+  GR.resetProducts = () => GR.write('productos', null);
+
+  // ── Íconos (trazos de 24×24) ────────────────────────────────────────────
+  const P = {
+    printer: '<path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/>',
+    copier: '<path d="M3 11h18v9H3z"/><path d="M6 11V7h9l3 4"/><path d="M7 15h5M16 15h1"/><path d="M8 7V4h6"/>',
+    drop: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
+    wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+    file: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>',
+    box: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+    cart: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    users: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>',
+    briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
+    trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    'eye-off': '<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+    'arrow-right': '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    store: '<path d="M3 9l2-5h14l2 5"/><path d="M4 9v11h16V9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M10 20v-5h4v5"/>',
+    download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+    refresh: '<path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/>',
+    check: '<path d="m5 12 5 5 9-10"/>',
+    menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    truck: '<path d="M2 6h11v10H2zM13 9h4l4 4v3h-8z"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+    headset: '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M19 20a3 3 0 0 1-3 2h-3"/>',
+    shield: '<path d="M12 3 5 6v5c0 4.5 3 8.5 7 10 4-1.5 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/>',
+    card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',
+    pin: '<path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+    phone: '<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
+    percent: '<path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+    handshake: '<path d="m11 17 2 2a1.4 1.4 0 0 0 2-2"/><path d="m14 14 2.5 2.5a1.4 1.4 0 0 0 2-2l-3-3"/><path d="m3 11 5-5 4 2 3-1 6 5-2.5 2.5"/><path d="M3 11l2 2M8 6l-2 7 4 4"/>',
+    route: '<circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H17a3.5 3.5 0 0 0 0-7H7a3.5 3.5 0 0 1 0-7h8.5"/>',
+    camera: '<path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13.5" r="3.5"/>',
+    'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+    'chevron-left': '<path d="m15 6-6 6 6 6"/>',
+    'chevron-right': '<path d="m9 6 6 6-6 6"/>',
+  };
+  GR.icon = (name, size = 20) =>
+    `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${P[name] || P.box}</svg>`;
+
+  // Logo de WhatsApp (relleno).
+  GR.waIcon = (size = 24) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.47-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.42.25-.69.25-1.29.18-1.41-.08-.13-.27-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88a9.88 9.88 0 0 1 9.88 9.9c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.69 1.45c6.55 0 11.89-5.34 11.89-11.9 0-3.17-1.24-6.16-3.48-8.4Z"/></svg>`;
+
+  // Datos de contacto de la empresa.
+  GR.EMPRESA = {
+    whatsapp: '51986385044',
+    telefono: '(51) 986 385 044',
+    correo: 'ventas@grinser.com.pe',
+    direccion: 'Jirón Lampa Nro. 960 Interior 105, Lima - Perú',
+  };
+  // Tiendas. Para agregar la foto de una tienda, súbela a img/ y escribe la ruta en «foto».
+  GR.TIENDAS = [
+    {
+      nombre: 'Tienda Jr. Lampa',
+      etiqueta: 'Tienda principal',
+      direccion: 'Jr. Lampa 960, Interior 104',
+      referencia: 'Cercado de Lima',
+      foto: 'img/tienda-jr-lampa.jpg',
+      mapa: 'Jr. Lampa 960, Lima 15001',
+      telefono: '986 385 044',
+    },
+    {
+      nombre: 'Tienda Av. Bolivia',
+      direccion: 'Av. Bolivia 166',
+      referencia: 'Cercado de Lima',
+      foto: 'img/tienda-av-bolivia.png',
+      mapa: 'Av. Bolivia 166, Lima',
+      telefono: '986 385 044',
+    },
+  ];
+
+  GR.waLink =(texto = 'Hola Grinser, quisiera información sobre sus productos.') => `https://wa.me/${GR.EMPRESA.whatsapp}?text=${encodeURIComponent(texto)}`;
+
+  // Reemplaza <i data-icon="cart" data-size="18"></i> por el SVG.
+  GR.paintIcons = (root = document) => {
+    root.querySelectorAll('[data-icon]').forEach((el) => { el.outerHTML = GR.icon(el.dataset.icon, Number(el.dataset.size) || 20); });
+  };
+
+  // ── Avisos (toast) ─────────────────────────────────────────────────────
+  let toastTimer;
+  GR.toast = (message, type = 'ok') => {
+    let el = document.getElementById('toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+      document.body.appendChild(el);
+    }
+    el.className = `toast show ${type === 'error' ? 'is-error' : ''}`;
+    el.innerHTML = `${GR.icon(type === 'error' ? 'x' : 'check', 18)}<span>${GR.esc(message)}</span>`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+  };
+
+  document.addEventListener('DOMContentLoaded', () => GR.paintIcons());
+})();
