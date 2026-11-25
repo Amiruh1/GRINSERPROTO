@@ -33,7 +33,7 @@
   GR.sheetError = null;
   GR.dataReady = Promise.resolve(false);
 
-  function applyCatalogSnapshot(payload) {
+  function normalizeCatalog(payload) {
     if (!payload || payload.ok === false || !Array.isArray(payload.products) || !Array.isArray(payload.categories)) {
       throw new Error('Google Sheets devolvió un catálogo con formato inválido.');
     }
@@ -54,12 +54,27 @@
         activo: product.activo === true || String(product.activo).toLowerCase() === 'true',
       }));
     if (!categories.length) throw new Error('Google Sheets no contiene categorías válidas.');
-    const previous = sheetProducts ? JSON.stringify([GR.CATEGORIAS, sheetProducts]) : null;
-    GR.CATEGORIAS = categories;
-    sheetProducts = products;
+    return { categories, products };
+  }
+
+  function catalogSignature(catalog) {
+    return JSON.stringify([
+      catalog.categories.map((category) => [category.id, category.nombre, category.icon]),
+      catalog.products.map((product) => [
+        product.id, product.nombre, product.categoria, product.marca, product.precio,
+        product.precio_oferta, product.stock, product.descripcion, product.imagen, product.activo,
+      ]),
+    ]);
+  }
+
+  function applyCatalogSnapshot(payload) {
+    const catalog = normalizeCatalog(payload);
+    const previous = sheetProducts ? catalogSignature({ categories: GR.CATEGORIAS, products: sheetProducts }) : null;
+    GR.CATEGORIAS = catalog.categories;
+    sheetProducts = catalog.products;
     GR.sheetsConnected = true;
     GR.sheetError = null;
-    return previous !== JSON.stringify([categories, products]);
+    return previous !== catalogSignature(catalog);
   }
 
   function fetchSheetCatalog() {
@@ -114,9 +129,10 @@
     if (catalogChannel) catalogChannel.postMessage({ type: 'catalog-updated', catalog });
   };
 
-  function postToSheets(fields) {
+  function postToSheets(fields, expectedCatalog) {
     return new Promise((resolve, reject) => {
       if (!sheetsUrl) return reject(new Error('Falta configurar la URL de Google Sheets.'));
+      const expectedSignature = expectedCatalog ? catalogSignature(normalizeCatalog(expectedCatalog)) : null;
       const bytes = new Uint8Array(16);
       if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
       else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
@@ -140,13 +156,35 @@
       };
       addField('nonce', nonce);
       Object.entries(fields).forEach(([name, value]) => addField(name, String(value ?? '')));
+      let settled = false;
+      let verificationTimer = null;
+      let timeoutTimer = null;
+      let lastVerificationError = null;
       const finish = (error, result) => {
-        window.clearTimeout(timer);
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutTimer);
+        window.clearTimeout(verificationTimer);
         window.removeEventListener('message', onMessage);
         form.remove();
         frame.remove();
         if (error) reject(error);
         else resolve(result);
+      };
+      const verifyCatalog = async () => {
+        if (settled || !expectedSignature) return;
+        try {
+          await fetchSheetCatalog();
+          if (settled) return;
+          if (catalogSignature({ categories: GR.CATEGORIAS, products: sheetProducts }) === expectedSignature) {
+            finish(null, { ok: true, message: 'Catálogo verificado en Google Sheets.' });
+            return;
+          }
+        } catch (error) {
+          if (settled) return;
+          lastVerificationError = error;
+        }
+        verificationTimer = window.setTimeout(verifyCatalog, 1500);
       };
       const onMessage = (event) => {
         const result = event.data;
@@ -154,10 +192,19 @@
         if (!result.ok) return finish(new Error(result.message || 'No se pudo guardar en Google Sheets.'));
         finish(null, result);
       };
-      const timer = window.setTimeout(() => finish(new Error('No se recibió confirmación de Google Sheets. Inténtalo nuevamente.')), 20000);
+      timeoutTimer = window.setTimeout(() => {
+        if (expectedSignature) {
+          const message = lastVerificationError
+            ? `No se pudo verificar el catálogo en Google Sheets: ${lastVerificationError.message}`
+            : 'Google Sheets no reflejó el catálogo guardado. Verifica la conexión y vuelve a intentarlo.';
+          finish(new Error(message));
+        }
+        else finish(new Error('No se recibió confirmación de Google Sheets. Inténtalo nuevamente.'));
+      }, 20000);
       window.addEventListener('message', onMessage);
       document.body.append(frame, form);
       form.submit();
+      if (expectedSignature) verificationTimer = window.setTimeout(verifyCatalog, 1500);
     });
   }
 
@@ -166,7 +213,7 @@
   });
 
   GR.saveCatalogToSheets = async (adminKey, catalog) => {
-    await postToSheets({ action: 'save-catalog', adminKey, catalog: JSON.stringify(catalog) });
+    await postToSheets({ action: 'save-catalog', adminKey, catalog: JSON.stringify(catalog) }, catalog);
     sheetProducts = catalog.products.map((product) => ({ ...product }));
     GR.CATEGORIAS = catalog.categories.map((category) => ({ ...category }));
     GR.publishCatalogUpdate({ products: sheetProducts, categories: GR.CATEGORIAS });

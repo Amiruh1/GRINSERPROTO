@@ -10,6 +10,8 @@
   let salesPeriod = 'todo';
   let sheetsWriteKey = '';
   let catalogSyncing = false;
+  let catalogRefreshInProgress = false;
+  let catalogRefreshFailed = false;
   const ORDER_STATUSES = ['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado'];
 
   // ── Acceso: sin sesión se pide ingresar como empresa; un cliente vuelve a la tienda ──
@@ -38,6 +40,42 @@
   }
 
   function renderAll() { renderStats(); renderProducts(); renderUsers(); renderSales(); renderCategories(); }
+
+  function updateCatalogSourceNote() {
+    if (GR.sheetsConnected) {
+      ['#p-reset', '#p-export', '#c-export'].forEach((selector) => { $(selector).disabled = true; });
+      $('#p-new').disabled = false;
+      $('#c-new').disabled = false;
+      $('#p-source-note').textContent = 'Catálogo conectado a Sheets. Los cambios se guardan en la hoja al confirmarlos; la primera vez se solicitará la clave de administración.';
+      $('#c-source-note').textContent = 'Categorías sincronizadas con Sheets. Los cambios se guardan al confirmarlos; la primera vez se solicitará la clave de administración.';
+    } else if (GR.sheetsConfigured) {
+      ['#p-new', '#p-reset', '#p-export', '#c-new', '#c-export'].forEach((selector) => { $(selector).disabled = true; });
+      $('#p-source-note').textContent = 'Google Sheets está configurado, pero no se pudo conectar. No se permiten cambios hasta recuperar la conexión.';
+      $('#c-source-note').textContent = 'Google Sheets está configurado, pero no se pudo conectar. No se permiten cambios hasta recuperar la conexión.';
+    }
+  }
+
+  async function refreshCatalogFromSheets() {
+    if (!GR.sheetsConfigured || catalogRefreshInProgress ||
+        catalogSyncing || document.visibilityState !== 'visible' ||
+        ['#p-dialog', '#c-dialog', '#stock-dialog'].some((selector) => $(selector).open)) return;
+    catalogRefreshInProgress = true;
+    try {
+      const changed = await GR.refreshCatalog();
+      catalogRefreshFailed = false;
+      updateCatalogSourceNote();
+      if (changed) {
+        products = GR.getProducts();
+        renderProductCategoryOptions();
+        renderAll();
+      }
+    } catch (error) {
+      if (!catalogRefreshFailed) GR.toast(`No se pudo actualizar el catálogo: ${error.message}`, 'error');
+      catalogRefreshFailed = true;
+    } finally {
+      catalogRefreshInProgress = false;
+    }
+  }
 
   function renderProductCategoryOptions() {
     const categories = [...GR.CATEGORIAS];
@@ -502,16 +540,14 @@
     await GR.authReady;
     await GR.dataReady;
     if (GR.sheetError) GR.toast('No se pudo cargar Google Sheets; se muestran los datos locales.', 'error');
-    if (GR.sheetsConnected) {
-      ['#p-reset', '#p-export', '#c-export'].forEach((selector) => { $(selector).disabled = true; });
-      $('#p-source-note').textContent = 'Catálogo conectado a Sheets. Los cambios se guardan en la hoja al confirmarlos; la primera vez se solicitará la clave de administración.';
-      $('#c-source-note').textContent = 'Categorías sincronizadas con Sheets. Los cambios se guardan al confirmarlos; la primera vez se solicitará la clave de administración.';
-    } else if (GR.sheetsConfigured) {
-      ['#p-new', '#p-reset', '#p-export', '#c-new', '#c-export'].forEach((selector) => { $(selector).disabled = true; });
-      $('#p-source-note').textContent = 'Google Sheets está configurado, pero no se pudo conectar. No se permiten cambios hasta recuperar la conexión.';
-      $('#c-source-note').textContent = 'Google Sheets está configurado, pero no se pudo conectar. No se permiten cambios hasta recuperar la conexión.';
-    }
+    catalogRefreshFailed = Boolean(GR.sheetError);
+    updateCatalogSourceNote();
     guard();
+    window.setInterval(refreshCatalogFromSheets, 15000);
+    window.addEventListener('focus', refreshCatalogFromSheets);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshCatalogFromSheets();
+    });
 
     $('#p-q').addEventListener('input', renderProducts);
     $('#u-q').addEventListener('input', renderUsers);
