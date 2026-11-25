@@ -5,7 +5,11 @@ Sitio estático de **Grinser EIRL – Grupo Innova Service**. Tiene catálogo, c
 ## Estructura
 
 ```
-index.html        Tienda: catálogo, carrito, inicio de sesión
+index.html        Ofertas, carrito e inicio de sesión
+empresa.html      Información de la empresa
+servicio-tecnico.html  Servicios de soporte y mantenimiento
+repuestos-insumos.html Repuestos, consumibles y asesoría por WhatsApp
+productos.html    Catálogo de productos con filtros y consulta por WhatsApp
 admin.html        Panel de empresa (solo administradores): productos, usuarios y roles
 css/styles.css    Estilos
 js/productos.js   Catálogo inicial (edítalo o reemplázalo con el que exporta el panel)
@@ -14,7 +18,9 @@ js/sheets-config.js URL pública de la aplicación web de Google Apps Script
 google-apps-script/Code.gs  API de lectura del catálogo y registro de clientes
 js/data.js        Utilidades, íconos y datos de contacto (WhatsApp, teléfono, correo, dirección)
 js/auth.js        Cuentas, roles, ventana de login y la persona animada
-js/store.js       Cabecera, carrusel, categorías, catálogo, carrito, pie de página y WhatsApp
+js/store.js       Ofertas de inicio, carrito, sesión y WhatsApp
+js/productos-page.js  Catálogo y filtros de la página Productos
+js/site-shell.js  Cabecera y pie compartidos por Empresa, Servicio Técnico y Productos
 js/admin.js       Panel de empresa
 img/              Logo (con fondo azul y versión transparente para el pie de página)
 ```

@@ -8,7 +8,7 @@
   let products = [];
   let cart = GR.read('carrito', []); // [{ id, cantidad }]
   // cat: 'todas' | 'ofertas' | id de categoría.  nav: enlace resaltado en el menú.
-  const state = { cat: 'todas', q: '', sort: 'relevancia', nav: 'inicio' };
+  const state = { cat: 'ofertas', q: '', sort: 'relevancia', nav: 'ofertas' };
   let catalogRefreshInProgress = false;
   let catalogRefreshFailed = false;
 
@@ -38,7 +38,9 @@
 
   // ── Nuestras tiendas ───────────────────────────────────────────────────
   function renderStores() {
-    $('#stores').innerHTML = GR.TIENDAS.map((t, n) => {
+    const stores = $('#stores');
+    if (!stores) return;
+    stores.innerHTML = GR.TIENDAS.map((t, n) => {
       const mapQ = encodeURIComponent(t.mapa);
       return `
       <article class="store">
@@ -89,7 +91,9 @@
   };
 
   function renderCatCards() {
-    $('#cat-cards').innerHTML = [...GR.CATEGORIAS, { id: 'ofertas', nombre: 'Ofertas', icon: 'percent' }].map((c) => `
+    const cards = $('#cat-cards');
+    if (!cards) return;
+    cards.innerHTML = [...GR.CATEGORIAS, { id: 'ofertas', nombre: 'Ofertas', icon: 'percent' }].map((c) => `
       <a href="#tienda" class="cat-card ${c.id === 'ofertas' ? 'is-hot' : ''}" data-nav="${c.id}">
         <span class="cat-card-copy"><b>${GR.esc(c.nombre)}</b><small>${c.id === 'ofertas' ? 'Precios especiales' : `${countOf(c.id)} producto${countOf(c.id) === 1 ? '' : 's'}`} →</small></span>
         <span class="cat-card-ic">${GR.icon(c.icon, 30)}</span>
@@ -97,6 +101,7 @@
   }
 
   function renderChips() {
+    if (!$('#cat-chips')) return;
     const chips = [{ id: 'todas', nombre: 'Todo', icon: 'grid' }, { id: 'ofertas', nombre: 'Ofertas', icon: 'percent' }, ...GR.CATEGORIAS]
       .filter((c) => countOf(c.id) || c.id === state.cat);
     $('#cat-chips').innerHTML = chips.map((c) => `
@@ -141,7 +146,7 @@
 
   function renderGrid() {
     const list = filtered();
-    const titulo = state.cat === 'todas' ? 'Nuestros productos' : state.cat === 'ofertas' ? 'Ofertas' : GR.cat(state.cat).nombre;
+    const titulo = state.cat === 'todas' ? 'Nuestros productos' : state.cat === 'ofertas' ? 'Productos en Oferta' : GR.cat(state.cat).nombre;
     $('#shop-title').textContent = titulo;
     $('#result-info').textContent = `${list.length} producto${list.length === 1 ? '' : 's'}${state.q.trim() ? ` para «${state.q.trim()}»` : ''}`;
     $('#grid').innerHTML = list.length ? list.map(card).join('')
@@ -268,9 +273,10 @@
   }
 
   function renderSeasonalEvent() {
+    const banner = $('#seasonal-banner');
+    if (!banner) return;
     const event = GR.getActiveEvent();
     const eventId = event ? event.id : '';
-    const banner = $('#seasonal-banner');
     const logo = $('.brand img');
     const logoSources = {
       navidad: 'img/logo-grinser-navidad.png',
@@ -325,6 +331,7 @@
 
   // ── Carrusel ───────────────────────────────────────────────────────────
   function initHero() {
+    if (!$('#hero')) return;
     const slides = [...document.querySelectorAll('#hero .slide')];
     const dots = $('#hero .hero-dots');
     let i = 0, timer = null;
@@ -517,6 +524,7 @@
   function initQuoteForm() {
     const dialog = $('#quote-dialog');
     const form = $('#quote-form');
+    if (!dialog || !form) return;
     document.querySelectorAll('[data-quote-open]').forEach((button) => {
       button.addEventListener('click', () => dialog.showModal());
     });
@@ -550,6 +558,11 @@
     await GR.authReady;
     await GR.dataReady;
     products = GR.getProducts();
+    const requestedCategory = new URLSearchParams(window.location.search).get('categoria');
+    if (requestedCategory === 'ofertas' || GR.CATEGORIAS.some((category) => category.id === requestedCategory)) {
+      state.cat = requestedCategory;
+      state.nav = requestedCategory;
+    }
     if (GR.sheetError) GR.toast('No se pudo cargar Google Sheets; se muestran los datos locales.', 'error');
     renderUser(); renderNav(); renderCatDrop(); renderCatCards(); renderChips(); saveCart();
     renderStores(); renderSeasonalEvent(); initHero(); initContact(); initQuoteForm();
@@ -579,7 +592,7 @@
 
     $('#q').addEventListener('input', (e) => { state.q = e.target.value; renderGrid(); });
     $('#search-form').addEventListener('submit', (e) => { e.preventDefault(); state.q = $('#q').value; goTo(state.cat === 'todas' || state.cat === 'ofertas' ? state.cat : 'todas'); });
-    $('#sort').addEventListener('change', (e) => { state.sort = e.target.value; renderGrid(); });
+    $('#sort')?.addEventListener('change', (e) => { state.sort = e.target.value; renderGrid(); });
     $('#cart-btn').addEventListener('click', openCart);
     $('#checkout').addEventListener('click', checkout);
     $('#cart-clear').addEventListener('click', () => { if (confirm('¿Vaciar el carrito?')) { cart = []; saveCart(); } });
@@ -646,5 +659,8 @@
       if (GR.sheetsConnected && !catalogChanged) { renderCart(); renderGrid(); }
       renderUser();
     });
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('login') === '1') GR.openAuth('login');
+    if (params.get('carrito') === '1') openCart();
   });
 })();
