@@ -9,10 +9,33 @@
   let cart = GR.read('carrito', []); // [{ id, cantidad }]
   // cat: 'todas' | 'ofertas' | id de categoría.  nav: enlace resaltado en el menú.
   const state = { cat: 'todas', q: '', sort: 'relevancia', nav: 'inicio' };
+  let sheetRefreshErrorShown = false;
 
   const byId = (id) => products.find((p) => p.id === id);
   const visible = () => products.filter((p) => p.activo !== false);
   const countOf = (cat) => visible().filter((p) => (cat === 'ofertas' ? GR.enOferta(p) : cat === 'todas' || p.categoria === cat)).length;
+
+  async function refreshCatalogFromSheets() {
+    if (!GR.sheetsConfigured) return false;
+    const previous = JSON.stringify({ products: GR.getProducts(), categories: GR.CATEGORIAS });
+    try {
+      await GR.refreshSheetCatalog();
+      sheetRefreshErrorShown = false;
+    } catch (error) {
+      if (!sheetRefreshErrorShown) GR.toast(`No se pudo actualizar el catálogo desde Google Sheets: ${error.message}`, 'error');
+      sheetRefreshErrorShown = true;
+      return false;
+    }
+    const current = JSON.stringify({ products: GR.getProducts(), categories: GR.CATEGORIAS });
+    if (previous === current) return false;
+    products = GR.getProducts();
+    if (state.cat !== 'todas' && state.cat !== 'ofertas' && !GR.CATEGORIAS.some((category) => category.id === state.cat)) {
+      state.cat = 'todas';
+      state.nav = 'todas';
+    }
+    saveCart(); renderNav(); renderCatDrop(); renderCatCards(); renderChips(); renderGrid();
+    return true;
+  }
 
   const media = (p, size = 46) => p.imagen
     ? `<img src="${GR.esc(p.imagen)}" alt="" loading="lazy">`
@@ -374,6 +397,7 @@
     await GR.dataReady;
     products = GR.getProducts();
     if (GR.sheetError) GR.toast('No se pudo cargar Google Sheets; se muestran los datos locales.', 'error');
+    sheetRefreshErrorShown = Boolean(GR.sheetError);
     renderUser(); renderNav(); renderCatDrop(); renderCatCards(); renderChips(); saveCart();
     renderStores(); initHero(); initContact(); initQuoteForm();
 
@@ -421,11 +445,24 @@
 
     window.addEventListener('gr:session', () => { renderUser(); renderCart(); });
     // Cambios hechos en otra pestaña (por ejemplo, el panel de empresa).
-    window.addEventListener('storage', () => {
+    window.addEventListener('storage', (event) => {
+      if (GR.sheetsConnected && event.key === 'grinser_catalog_revision') {
+        void refreshCatalogFromSheets();
+        return;
+      }
       products = GR.getProducts(); cart = GR.read('carrito', []);
       const categories = GR.read('categorias', null);
       if (!GR.sheetsConnected && Array.isArray(categories)) GR.CATEGORIAS = categories;
-      renderUser(); renderChips(); renderCatCards(); renderCatDrop(); saveCart();
+      renderUser(); renderNav(); renderChips(); renderCatCards(); renderCatDrop(); renderGrid(); saveCart();
     });
+
+    if (GR.sheetsConfigured) {
+      window.setInterval(() => {
+        if (!document.hidden) void refreshCatalogFromSheets();
+      }, 30000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) void refreshCatalogFromSheets();
+      });
+    }
   });
 })();

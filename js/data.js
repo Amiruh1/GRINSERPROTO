@@ -33,8 +33,9 @@
   GR.sheetError = null;
   GR.dataReady = Promise.resolve(false);
 
-  if (sheetsUrl) {
-    GR.dataReady = new Promise((resolve, reject) => {
+  let sheetRefreshPromise = null;
+  function fetchSheetCatalog() {
+    return new Promise((resolve, reject) => {
       const callbackName = `__grinserSheets_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const script = document.createElement('script');
       const timeout = window.setTimeout(() => finish(new Error('Se agotó el tiempo de espera al cargar Google Sheets.')), 12000);
@@ -74,13 +75,26 @@
       window[callbackName] = (payload) => finish(null, payload);
       script.onerror = () => finish(new Error('No se pudo conectar con Google Sheets.'));
       const separator = sheetsUrl.includes('?') ? '&' : '?';
-      script.src = `${sheetsUrl}${separator}action=catalog&callback=${callbackName}`;
+      script.src = `${sheetsUrl}${separator}action=catalog&callback=${callbackName}&v=${Date.now()}`;
       document.head.appendChild(script);
-    }).catch((error) => {
-      GR.sheetError = error;
-      return false;
     });
   }
+
+  GR.refreshSheetCatalog = () => {
+    if (!sheetsUrl) return Promise.reject(new Error('Falta configurar la URL de Google Sheets.'));
+    if (sheetRefreshPromise) return sheetRefreshPromise;
+    sheetRefreshPromise = fetchSheetCatalog().then(() => {
+      GR.sheetError = null;
+      return true;
+    }).catch((error) => {
+      GR.sheetError = error;
+      throw error;
+    }).finally(() => {
+      sheetRefreshPromise = null;
+    });
+    return sheetRefreshPromise;
+  };
+  if (sheetsUrl) GR.dataReady = GR.refreshSheetCatalog().catch(() => false);
 
   function postToSheets(fields) {
     return new Promise((resolve, reject) => {
@@ -137,6 +151,7 @@
     await postToSheets({ action: 'save-catalog', adminKey, catalog: JSON.stringify(catalog) });
     sheetProducts = catalog.products.map((product) => ({ ...product }));
     GR.CATEGORIAS = catalog.categories.map((category) => ({ ...category }));
+    GR.write('catalog_revision', `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   };
 
   GR.cat = (id) => GR.CATEGORIAS.find((c) => c.id === id)
