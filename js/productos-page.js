@@ -36,7 +36,7 @@
           <h3 class="card-title">${GR.esc(product.nombre)}</h3>
           <p class="card-desc">${GR.esc(product.descripcion || '')}</p>
           <div class="card-price"><strong>${GR.money(price)}</strong>${discount ? `<s>${GR.money(product.precio)}</s>` : ''}</div>
-          <span class="stock ${product.stock <= 0 ? 'out' : product.stock <= 5 ? 'low' : ''}">${product.stock <= 0 ? 'Sin stock — consultar reposición' : 'Disponible para consulta'}</span>
+          <span class="stock ${product.stock <= 0 ? 'out' : product.stock <= 5 ? 'low' : ''}">${product.stock > 0 ? `${product.stock} unidad${product.stock === 1 ? '' : 'es'} disponible${product.stock === 1 ? '' : 's'}` : 'En reposición'}</span>
           <button type="button" class="btn btn-primary btn-add" data-add="${GR.esc(product.id)}" ${product.stock <= 0 ? 'disabled' : ''}>
             ${GR.icon('cart', 17)} <span>Agregar al carrito</span>
           </button>

@@ -360,7 +360,7 @@ function replaceSheet_(spreadsheet, name, headers, rows, textColumns) {
 
 function registrationResult_(nonce, ok, message) {
   const payload = JSON.stringify({ source: 'grinser-sheets', nonce: nonce, ok: ok, message: message });
-  const html = '<!doctype html><meta charset="utf-8"><script>window.parent.postMessage('
+  const html = '<!doctype html><meta charset="utf-8"><script>window.top.postMessage('
     + payload + ',"*");</script>';
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

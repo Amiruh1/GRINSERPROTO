@@ -52,6 +52,22 @@
     return u && u.activo ? u : null;
   };
   const emitSession = () => window.dispatchEvent(new CustomEvent('gr:session', { detail: GR.currentUser() }));
+  const syncingClients = new Set();
+  function syncClientProfile(user) {
+    if (!GR.sheetsConfigured || !user || user.rol !== 'cliente') return;
+    let synced = GR.read('clientesSheetsSync', {});
+    if (!synced || typeof synced !== 'object' || Array.isArray(synced)) synced = {};
+    if (synced[user.id] || syncingClients.has(user.id)) return;
+    syncingClients.add(user.id);
+    GR.saveClientToSheets({ nombre: user.nombre, email: user.email, telefono: user.telefono })
+      .then(() => {
+        GR.write('clientesSheetsSync', { ...synced, [user.id]: true });
+      })
+      .catch((error) => {
+        GR.toast(`Tu cuenta está activa en este navegador, pero no se pudo sincronizar el perfil con Google Sheets: ${error.message}`, 'error');
+      })
+      .finally(() => syncingClients.delete(user.id));
+  }
 
   // El inicio de sesión es compartido. En el panel de empresa se valida que la cuenta sea administradora.
   GR.login = async (email, password, modo = 'cliente') => {
@@ -62,6 +78,7 @@
     if (modo === 'empresa' && u.rol !== 'admin') throw new Error('Esta cuenta no tiene acceso al panel de empresa.');
     GR.write('sesion', u.id);
     emitSession();
+    syncClientProfile(u);
     return u;
   };
 
@@ -72,13 +89,13 @@
     const u = await GR.createUser({ ...data, rol: 'cliente' });
     GR.write('sesion', u.id);
     emitSession();
-    if (GR.sheetsConfigured) {
-      GR.saveClientToSheets({ nombre: data.nombre, email, telefono: data.telefono }).catch((error) => {
-        GR.toast(`Tu cuenta se creó en este navegador, pero no se pudo confirmar su registro en Google Sheets: ${error.message}`, 'error');
-      });
-    }
+    syncClientProfile(u);
     return u;
   };
+
+  GR.authReady.then(() => syncClientProfile(GR.currentUser())).catch((error) => {
+    GR.toast(`No se pudo cargar la cuenta local: ${error.message}`, 'error');
+  });
 
   GR.logout = () => {
     GR.write('sesion', null);

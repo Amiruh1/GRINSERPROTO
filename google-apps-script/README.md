@@ -16,7 +16,7 @@ Este Apps Script publica productos y categorías para lectura pública y recibe 
 
 1. En Apps Script, abre **Configuración del proyecto** y agrega una propiedad de secuencia de comandos llamada `GRINSER_ADMIN_KEY`. Pon como valor una clave larga y privada; no la escribas en `Code.gs` ni en `js/sheets-config.js`.
 2. Copia el `Code.gs` actualizado de este directorio al proyecto de Apps Script y guarda.
-3. En **Implementar → Gestionar implementaciones**, edita la implementación web, selecciona **Nueva versión** y pulsa **Implementar**. La URL `/exec` existente se conserva.
+3. En **Implementar → Gestionar implementaciones**, edita la implementación web, selecciona **Nueva versión** y pulsa **Implementar**. Guardar `Code.gs` por sí solo no actualiza la URL `/exec`; es necesario publicar la nueva versión para que el registro de clientes confirme la sincronización.
 4. Recarga el panel. Al guardar por primera vez un producto, stock, categoría o configuración de eventos, aparecerá un diálogo para ingresar esa clave. Se conserva solo en memoria hasta cerrar o recargar el panel.
 
 El panel sincroniza productos al crear, editar, eliminar o registrar movimientos de stock, sincroniza categorías al crear, editar o eliminar, y guarda la configuración de **Eventos** en la pestaña correspondiente. Si la clave o la conexión fallan, el cambio no se confirma en el panel. Las modificaciones manuales en Sheets se reflejan en la tienda y el panel en el siguiente sondeo, como máximo en 15 segundos mientras estén visibles.
