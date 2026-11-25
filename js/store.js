@@ -9,6 +9,7 @@
   let cart = GR.read('carrito', []); // [{ id, cantidad }]
   // cat: 'todas' | 'ofertas' | id de categoría.  nav: enlace resaltado en el menú.
   const state = { cat: 'ofertas', q: '', sort: 'relevancia', nav: 'ofertas' };
+  let categoryWasSelected = false;
   let catalogRefreshInProgress = false;
   let catalogRefreshFailed = false;
 
@@ -26,7 +27,7 @@
   function goTo(nav) {
     state.nav = nav === 'tiendas' ? 'empresa' : nav;
     const isSection = nav in SECTIONS;
-    if (!isSection) { state.cat = nav; renderChips(); renderGrid(); }
+    if (!isSection) { categoryWasSelected = true; state.cat = nav; renderChips(); renderGrid(); }
     renderNav();
     closeCatDrop();
     closeNavProducts();
@@ -546,7 +547,6 @@
   // ── Eventos ────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', async () => {
     await GR.authReady;
-    await GR.dataReady;
     products = GR.getProducts();
     const requestedCategory = new URLSearchParams(window.location.search).get('categoria');
     if (requestedCategory === 'ofertas' || GR.CATEGORIAS.some((category) => category.id === requestedCategory)) {
@@ -557,6 +557,23 @@
     renderUser(); renderNav(); renderCatDrop(); renderCatCards(); renderChips(); saveCart();
     renderStores(); renderSeasonalEvent(); initHero(); initContact(); initQuoteForm();
     catalogRefreshFailed = Boolean(GR.sheetError);
+    if (GR.sheetsConfigured) catalogRefreshInProgress = true;
+    GR.dataReady.then(() => {
+      if (!GR.sheetsConfigured) return;
+      catalogRefreshInProgress = false;
+      if (GR.sheetError) {
+        if (!catalogRefreshFailed) GR.toast('No se pudo cargar Google Sheets; se muestran los datos locales.', 'error');
+        catalogRefreshFailed = true;
+        return;
+      }
+      catalogRefreshFailed = false;
+      if (!categoryWasSelected && (requestedCategory === 'ofertas' ||
+          GR.CATEGORIAS.some((category) => category.id === requestedCategory))) {
+        state.cat = requestedCategory;
+        state.nav = requestedCategory;
+      }
+      renderCatalogUpdate();
+    });
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     reducedMotion.addEventListener?.('change', () => {
       seasonalEventId = null;
@@ -606,9 +623,9 @@
       const t = e.target.closest('button, a');
       if (!t) return;
       if (t.dataset.nav) { e.preventDefault(); goTo(t.dataset.nav); }
-      if (t.dataset.cat) { state.cat = t.dataset.cat; state.nav = ['todas', 'ofertas', ...GR.CATEGORIAS.map((c) => c.id)].includes(t.dataset.cat) ? t.dataset.cat : 'todas'; renderChips(); renderGrid(); renderNav(); }
+      if (t.dataset.cat) { categoryWasSelected = true; state.cat = t.dataset.cat; state.nav = ['todas', 'ofertas', ...GR.CATEGORIAS.map((c) => c.id)].includes(t.dataset.cat) ? t.dataset.cat : 'todas'; renderChips(); renderGrid(); renderNav(); }
       if (t.dataset.add) addToCart(t.dataset.add);
-      if (t.hasAttribute('data-reset')) { state.cat = 'todas'; state.q = ''; $('#q').value = ''; state.nav = 'todas'; renderChips(); renderGrid(); renderNav(); }
+      if (t.hasAttribute('data-reset')) { categoryWasSelected = true; state.cat = 'todas'; state.q = ''; $('#q').value = ''; state.nav = 'todas'; renderChips(); renderGrid(); renderNav(); }
       if (t.dataset.qty) { const it = cart.find((i) => i.id === t.dataset.qty); if (it) { it.cantidad += Number(t.dataset.d); saveCart(); } }
       if (t.dataset.remove) { cart = cart.filter((i) => i.id !== t.dataset.remove); saveCart(); }
       if (t.hasAttribute('data-close-cart')) closeCart();

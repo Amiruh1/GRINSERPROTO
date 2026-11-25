@@ -146,7 +146,6 @@
 
   document.addEventListener('DOMContentLoaded', async () => {
     await GR.authReady;
-    await GR.dataReady;
     const company = GR.EMPRESA;
     document.querySelector('#year').textContent = new Date().getFullYear();
     document.querySelector('#f-dir').textContent = company.direccion;
@@ -155,13 +154,17 @@
     document.querySelector('#f-mail').textContent = company.correo;
     document.querySelector('#f-mail').href = `mailto:${company.correo}`;
     document.querySelectorAll('.wa-text-link').forEach((link) => { link.href = GR.waLink(); });
-    const categories = [...GR.CATEGORIAS];
-    for (const product of GR.getProducts()) {
-      if (!categories.some((category) => category.id === product.categoria)) categories.push(GR.cat(product.categoria));
-    }
-    document.querySelector('#cat-drop').innerHTML = categories.map((category) =>
-      `<button type="button" data-category="${GR.esc(category.id)}">${GR.icon(category.icon, 18)}<span>${GR.esc(category.nombre)}</span></button>`,
-    ).join('') + `<a href="index.html?categoria=ofertas#tienda" class="hot">${GR.icon('percent', 18)}<span>Ofertas</span></a>`;
+    const renderCategories = () => {
+      const categories = [...GR.CATEGORIAS];
+      for (const product of GR.getProducts()) {
+        if (!categories.some((category) => category.id === product.categoria)) categories.push(GR.cat(product.categoria));
+      }
+      document.querySelector('#cat-drop').innerHTML = categories.map((category) =>
+        `<button type="button" data-category="${GR.esc(category.id)}">${GR.icon(category.icon, 18)}<span>${GR.esc(category.nombre)}</span></button>`,
+      ).join('') + `<a href="index.html?categoria=ofertas#tienda" class="hot">${GR.icon('percent', 18)}<span>Ofertas</span></a>`;
+    };
+    renderCategories();
+    GR.dataReady.then(renderCategories);
     renderUser();
     renderCartSummary();
     renderStores();

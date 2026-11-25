@@ -6,6 +6,13 @@
   const search = document.querySelector('#products-search');
   const count = document.querySelector('#products-count');
   let selectedCategory = 'todas';
+  let categoryWasSelected = false;
+
+  function hasCategory(categoryId) {
+    return categoryId === 'todas' || categoryId === 'ofertas' ||
+      GR.CATEGORIAS.some((category) => category.id === categoryId) ||
+      GR.getProducts().some((product) => product.categoria === categoryId);
+  }
 
   function render() {
     const query = search.value.trim().toLocaleLowerCase('es');
@@ -48,28 +55,33 @@
     ).join('');
   }
 
-  document.addEventListener('DOMContentLoaded', async () => {
-    await GR.dataReady;
+  document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const requestedCategory = params.get('categoria');
-    if (requestedCategory === 'ofertas' || GR.CATEGORIAS.some((category) => category.id === requestedCategory) ||
-        GR.getProducts().some((product) => product.categoria === requestedCategory)) {
+    if (hasCategory(requestedCategory)) {
       selectedCategory = requestedCategory;
     }
     search.value = params.get('q') || '';
-    renderCategories();
-    render();
+    const renderLatestCatalog = () => {
+      if (!categoryWasSelected) {
+        selectedCategory = hasCategory(requestedCategory) ? requestedCategory : 'todas';
+      } else if (!hasCategory(selectedCategory)) {
+        selectedCategory = 'todas';
+      }
+      renderCategories();
+      render();
+    };
+    renderLatestCatalog();
     search.addEventListener('input', render);
     categories.addEventListener('click', (event) => {
       const button = event.target.closest('[data-category]');
       if (!button) return;
+      categoryWasSelected = true;
       selectedCategory = button.dataset.category;
       renderCategories();
       render();
     });
-    GR.subscribeCatalogUpdates(() => {
-      renderCategories();
-      render();
-    });
+    GR.subscribeCatalogUpdates(renderLatestCatalog);
+    GR.dataReady.then(renderLatestCatalog);
   });
 })();
