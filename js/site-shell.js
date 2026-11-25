@@ -201,6 +201,7 @@
     window.addEventListener('storage', (event) => {
       if (event.key === 'grinser_carrito' || event.key === 'grinser_productos') renderCartSummary();
     });
+    window.addEventListener('gr:cart', renderCartSummary);
     GR.paintIcons(document);
   });
 })();

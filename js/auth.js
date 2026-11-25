@@ -69,10 +69,14 @@
     await GR.authReady;
     const email = norm(data.email);
     if (GR.getUsers().some((user) => user.email === email)) throw new Error('Ese correo ya está registrado.');
-    if (GR.sheetsConfigured) await GR.saveClientToSheets({ nombre: data.nombre, email, telefono: data.telefono });
     const u = await GR.createUser({ ...data, rol: 'cliente' });
     GR.write('sesion', u.id);
     emitSession();
+    if (GR.sheetsConfigured) {
+      GR.saveClientToSheets({ nombre: data.nombre, email, telefono: data.telefono }).catch((error) => {
+        GR.toast(`Tu cuenta se creó en este navegador, pero no se pudo confirmar su registro en Google Sheets: ${error.message}`, 'error');
+      });
+    }
     return u;
   };
 
@@ -298,8 +302,8 @@
     $('#auth-title').textContent = empresa ? 'Acceso empresa' : reg ? 'Crear cuenta' : 'Iniciar sesión';
     $('.auth-sub').textContent = reg
       ? GR.sheetsConfigured
-        ? 'Nombre, correo y teléfono opcional se guardan en la hoja de clientes; la contraseña no se comparte.'
-        : 'Guarda tus datos y haz tus pedidos más rápido.'
+        ? 'Tu cuenta se guarda en este navegador. Nombre, correo y teléfono opcional se registran en la hoja; la contraseña no se comparte.'
+        : 'Tu cuenta se guarda en este navegador para facilitar tus pedidos.'
       : empresa ? 'Solo para administradores: ingresa al panel de gestión de Grinser.'
       : 'Ingresa para finalizar tus pedidos.';
     $('.af-submit-text').textContent = st.busy ? 'Procesando…' : empresa ? 'Ingresar al panel' : reg ? 'Crear cuenta' : 'Iniciar sesión';
