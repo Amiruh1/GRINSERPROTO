@@ -19,7 +19,9 @@ Este Apps Script publica productos y categorías para lectura pública y recibe 
 3. En **Implementar → Gestionar implementaciones**, edita la implementación web, selecciona **Nueva versión** y pulsa **Implementar**. La URL `/exec` existente se conserva.
 4. Recarga el panel. Al guardar por primera vez un producto, stock o categoría, aparecerá un diálogo para ingresar esa clave. Se conserva solo en memoria hasta cerrar o recargar el panel.
 
-El panel sincroniza productos al crear, editar, eliminar o registrar movimientos de stock, y sincroniza categorías al crear, editar o eliminar. Si la clave o la conexión fallan, el cambio no se confirma en el panel. Las modificaciones manuales en Sheets se verán al recargar la tienda o el panel.
+El panel sincroniza productos al crear, editar, eliminar o registrar movimientos de stock, y sincroniza categorías al crear, editar o eliminar. Si la clave o la conexión fallan, el cambio no se confirma en el panel. Las modificaciones manuales en Sheets se reflejan en la tienda en el siguiente sondeo; el panel se actualiza al recargarlo.
+
+La tienda abierta en la misma sesión del navegador recibe los cambios del panel inmediatamente. En otros dispositivos, consulta Sheets cada 15 segundos mientras la pestaña está visible y al volver a ella. Para muchos visitantes, ese sondeo frecuente puede alcanzar las cuotas de Apps Script; un sitio de alto tráfico necesita un backend con actualizaciones en tiempo real.
 
 Si la tienda muestra un error `401`, revisa en **Gestionar implementaciones** que la aplicación web permita acceso a **Cualquier persona**. Si `GRINSER_ADMIN_KEY` todavía no está configurada, Apps Script también rechazará las escrituras hasta agregarla en las propiedades del proyecto.
 

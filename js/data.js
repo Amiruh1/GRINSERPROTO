@@ -33,8 +33,37 @@
   GR.sheetError = null;
   GR.dataReady = Promise.resolve(false);
 
-  if (sheetsUrl) {
-    GR.dataReady = new Promise((resolve, reject) => {
+  function applyCatalogSnapshot(payload) {
+    if (!payload || payload.ok === false || !Array.isArray(payload.products) || !Array.isArray(payload.categories)) {
+      throw new Error('Google Sheets devolvió un catálogo con formato inválido.');
+    }
+    const categories = payload.categories.filter((category) => category && category.id && category.nombre)
+      .map((category) => ({ id: String(category.id), nombre: String(category.nombre), icon: String(category.icon || 'box') }));
+    const products = payload.products.filter((product) => product && product.id && product.nombre && product.categoria)
+      .map((product) => ({
+        ...product,
+        id: String(product.id),
+        nombre: String(product.nombre),
+        categoria: String(product.categoria),
+        marca: String(product.marca || ''),
+        precio: Number(product.precio) || 0,
+        precio_oferta: product.precio_oferta == null || product.precio_oferta === '' ? null : Number(product.precio_oferta),
+        stock: Number(product.stock) || 0,
+        descripcion: String(product.descripcion || ''),
+        imagen: String(product.imagen || ''),
+        activo: product.activo === true || String(product.activo).toLowerCase() === 'true',
+      }));
+    if (!categories.length) throw new Error('Google Sheets no contiene categorías válidas.');
+    const previous = sheetProducts ? JSON.stringify([GR.CATEGORIAS, sheetProducts]) : null;
+    GR.CATEGORIAS = categories;
+    sheetProducts = products;
+    GR.sheetsConnected = true;
+    GR.sheetError = null;
+    return previous !== JSON.stringify([categories, products]);
+  }
+
+  function fetchSheetCatalog() {
+    return new Promise((resolve, reject) => {
       const callbackName = `__grinserSheets_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const script = document.createElement('script');
       const timeout = window.setTimeout(() => finish(new Error('Se agotó el tiempo de espera al cargar Google Sheets.')), 12000);
@@ -46,41 +75,44 @@
       const finish = (error, payload) => {
         cleanup();
         if (error) return reject(error);
-        if (!payload || payload.ok !== true || !Array.isArray(payload.products) || !Array.isArray(payload.categories)) {
-          return reject(new Error('Google Sheets devolvió un catálogo con formato inválido.'));
-        }
-        const categories = payload.categories.filter((category) => category && category.id && category.nombre)
-          .map((category) => ({ id: String(category.id), nombre: String(category.nombre), icon: String(category.icon || 'box') }));
-        const products = payload.products.filter((product) => product && product.id && product.nombre && product.categoria)
-          .map((product) => ({
-            ...product,
-            id: String(product.id),
-            nombre: String(product.nombre),
-            categoria: String(product.categoria),
-            marca: String(product.marca || ''),
-            precio: Number(product.precio) || 0,
-            precio_oferta: product.precio_oferta == null || product.precio_oferta === '' ? null : Number(product.precio_oferta),
-            stock: Number(product.stock) || 0,
-            descripcion: String(product.descripcion || ''),
-            imagen: String(product.imagen || ''),
-            activo: product.activo === true || String(product.activo).toLowerCase() === 'true',
-          }));
-        if (!categories.length) return reject(new Error('Google Sheets no contiene categorías válidas.'));
-        GR.CATEGORIAS = categories;
-        sheetProducts = products;
-        GR.sheetsConnected = true;
-        resolve(true);
+        try { resolve(applyCatalogSnapshot(payload)); } catch (validationError) { reject(validationError); }
       };
       window[callbackName] = (payload) => finish(null, payload);
       script.onerror = () => finish(new Error('No se pudo conectar con Google Sheets.'));
       const separator = sheetsUrl.includes('?') ? '&' : '?';
       script.src = `${sheetsUrl}${separator}action=catalog&callback=${callbackName}`;
       document.head.appendChild(script);
-    }).catch((error) => {
+    });
+  }
+
+  if (sheetsUrl) {
+    GR.dataReady = fetchSheetCatalog().catch((error) => {
       GR.sheetError = error;
       return false;
     });
   }
+  GR.refreshCatalog = () => sheetsUrl ? fetchSheetCatalog() : Promise.resolve(false);
+  GR.applyCatalogSnapshot = applyCatalogSnapshot;
+
+  const catalogChannel = sheetsUrl && 'BroadcastChannel' in window
+    ? new BroadcastChannel('grinser-catalog')
+    : null;
+  GR.subscribeCatalogUpdates = (handler) => {
+    if (!catalogChannel) return () => {};
+    const listener = (event) => {
+      if (!event.data || event.data.type !== 'catalog-updated') return;
+      try {
+        if (applyCatalogSnapshot(event.data.catalog)) handler();
+      } catch (error) {
+        GR.toast(`No se pudo aplicar la actualización del catálogo: ${error.message}`, 'error');
+      }
+    };
+    catalogChannel.addEventListener('message', listener);
+    return () => catalogChannel.removeEventListener('message', listener);
+  };
+  GR.publishCatalogUpdate = (catalog) => {
+    if (catalogChannel) catalogChannel.postMessage({ type: 'catalog-updated', catalog });
+  };
 
   function postToSheets(fields) {
     return new Promise((resolve, reject) => {
@@ -137,6 +169,7 @@
     await postToSheets({ action: 'save-catalog', adminKey, catalog: JSON.stringify(catalog) });
     sheetProducts = catalog.products.map((product) => ({ ...product }));
     GR.CATEGORIAS = catalog.categories.map((category) => ({ ...category }));
+    GR.publishCatalogUpdate({ products: sheetProducts, categories: GR.CATEGORIAS });
   };
 
   GR.cat = (id) => GR.CATEGORIAS.find((c) => c.id === id)

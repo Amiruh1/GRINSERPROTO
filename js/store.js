@@ -9,6 +9,8 @@
   let cart = GR.read('carrito', []); // [{ id, cantidad }]
   // cat: 'todas' | 'ofertas' | id de categoría.  nav: enlace resaltado en el menú.
   const state = { cat: 'todas', q: '', sort: 'relevancia', nav: 'inicio' };
+  let catalogRefreshInProgress = false;
+  let catalogRefreshFailed = false;
 
   const byId = (id) => products.find((p) => p.id === id);
   const visible = () => products.filter((p) => p.activo !== false);
@@ -144,6 +146,31 @@
     $('#result-info').textContent = `${list.length} producto${list.length === 1 ? '' : 's'}${state.q.trim() ? ` para «${state.q.trim()}»` : ''}`;
     $('#grid').innerHTML = list.length ? list.map(card).join('')
       : `<div class="empty">${GR.icon('search', 34)}<p>No encontramos productos con esos filtros.</p><button type="button" class="btn" data-reset>Ver todo el catálogo</button></div>`;
+  }
+
+  function renderCatalogUpdate() {
+    products = GR.getProducts();
+    if (state.cat !== 'todas' && state.cat !== 'ofertas' && !GR.CATEGORIAS.some((category) => category.id === state.cat)) {
+      state.cat = 'todas';
+      state.nav = 'todas';
+    }
+    renderNav(); renderCatDrop(); renderCatCards(); renderChips();
+    saveCart();
+  }
+
+  async function refreshCatalog() {
+    if (!GR.sheetsConfigured || catalogRefreshInProgress || document.visibilityState !== 'visible') return;
+    catalogRefreshInProgress = true;
+    try {
+      const changed = await GR.refreshCatalog();
+      catalogRefreshFailed = false;
+      if (changed) renderCatalogUpdate();
+    } catch (error) {
+      if (!catalogRefreshFailed) GR.toast(`No se pudo actualizar el catálogo: ${error.message}`, 'error');
+      catalogRefreshFailed = true;
+    } finally {
+      catalogRefreshInProgress = false;
+    }
   }
 
   // ── Carrusel ───────────────────────────────────────────────────────────
@@ -376,6 +403,16 @@
     if (GR.sheetError) GR.toast('No se pudo cargar Google Sheets; se muestran los datos locales.', 'error');
     renderUser(); renderNav(); renderCatDrop(); renderCatCards(); renderChips(); saveCart();
     renderStores(); initHero(); initContact(); initQuoteForm();
+    catalogRefreshFailed = Boolean(GR.sheetError);
+    GR.subscribeCatalogUpdates(() => {
+      catalogRefreshFailed = false;
+      renderCatalogUpdate();
+    });
+    window.setInterval(refreshCatalog, 15000);
+    window.addEventListener('focus', refreshCatalog);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshCatalog();
+    });
 
     $('#q').addEventListener('input', (e) => { state.q = e.target.value; renderGrid(); });
     $('#search-form').addEventListener('submit', (e) => { e.preventDefault(); state.q = $('#q').value; goTo(state.cat === 'todas' || state.cat === 'ofertas' ? state.cat : 'todas'); });
@@ -421,11 +458,30 @@
 
     window.addEventListener('gr:session', () => { renderUser(); renderCart(); });
     // Cambios hechos en otra pestaña (por ejemplo, el panel de empresa).
-    window.addEventListener('storage', () => {
-      products = GR.getProducts(); cart = GR.read('carrito', []);
-      const categories = GR.read('categorias', null);
-      if (!GR.sheetsConnected && Array.isArray(categories)) GR.CATEGORIAS = categories;
-      renderUser(); renderChips(); renderCatCards(); renderCatDrop(); saveCart();
+    window.addEventListener('storage', (event) => {
+      cart = GR.read('carrito', []);
+      let catalogChanged = false;
+      if (GR.sheetsConnected && ['grinser_productos', 'grinser_categorias'].includes(event.key)) {
+        const productsFromStorage = event.key === 'grinser_productos' ? GR.read('productos', null) : GR.getProducts();
+        const categoriesFromStorage = event.key === 'grinser_categorias' ? GR.read('categorias', null) : GR.CATEGORIAS;
+        if (Array.isArray(productsFromStorage) && Array.isArray(categoriesFromStorage)) {
+          try {
+            if (GR.applyCatalogSnapshot({ products: productsFromStorage, categories: categoriesFromStorage })) {
+              renderCatalogUpdate();
+              catalogChanged = true;
+            }
+          } catch (error) {
+            GR.toast(`No se pudo aplicar el cambio del catálogo: ${error.message}`, 'error');
+          }
+        }
+      } else if (!GR.sheetsConnected) {
+        products = GR.getProducts();
+        const categories = GR.read('categorias', null);
+        if (Array.isArray(categories)) GR.CATEGORIAS = categories;
+        renderChips(); renderCatCards(); renderCatDrop(); saveCart();
+      }
+      if (GR.sheetsConnected && !catalogChanged) { renderCart(); renderGrid(); }
+      renderUser();
     });
   });
 })();

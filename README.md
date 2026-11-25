@@ -23,7 +23,7 @@ Para cambiar el número de WhatsApp, el teléfono, el correo o la dirección, ed
 
 ## Conectar Google Sheets
 
-El proyecto incluye un Apps Script en [`google-apps-script/Code.gs`](./google-apps-script/Code.gs) y las instrucciones de configuración en [`google-apps-script/README.md`](./google-apps-script/README.md). Después de desplegarlo, pega la URL `/exec` en `js/sheets-config.js` y publica el sitio. La hoja será la fuente de productos y categorías; el panel puede sincronizar cambios tras configurar la clave `GRINSER_ADMIN_KEY` en Apps Script. Los registros guardan nombre, correo y teléfono opcional en una pestaña privada. Las contraseñas no se envían a Sheets y el inicio de sesión continúa siendo local a cada navegador.
+El proyecto incluye un Apps Script en [`google-apps-script/Code.gs`](./google-apps-script/Code.gs) y las instrucciones de configuración en [`google-apps-script/README.md`](./google-apps-script/README.md). Después de desplegarlo, pega la URL `/exec` en `js/sheets-config.js` y publica el sitio. La hoja será la fuente de productos y categorías; el panel puede sincronizar cambios tras configurar la clave `GRINSER_ADMIN_KEY` en Apps Script. La tienda abierta en la misma sesión recibe cambios inmediatamente; otras pestañas consultan Sheets cada 15 segundos mientras están visibles. Los registros guardan nombre, correo y teléfono opcional en una pestaña privada. Las contraseñas no se envían a Sheets y el inicio de sesión continúa siendo local a cada navegador.
 
 ## Cuentas de prueba
 
