@@ -146,7 +146,7 @@
 
   function renderGrid() {
     const list = filtered();
-    const titulo = state.cat === 'todas' ? 'Nuestros productos' : state.cat === 'ofertas' ? 'Productos en Oferta' : GR.cat(state.cat).nombre;
+    const titulo = state.cat === 'todas' ? 'Nuestros productos' : state.cat === 'ofertas' ? 'Productos Destacados' : GR.cat(state.cat).nombre;
     $('#shop-title').textContent = titulo;
     $('#result-info').textContent = `${list.length} producto${list.length === 1 ? '' : 's'}${state.q.trim() ? ` para «${state.q.trim()}»` : ''}`;
     $('#grid').innerHTML = list.length ? list.map(card).join('')
@@ -501,7 +501,7 @@
       </details>`;
   }
 
-  // ── Pie de página y WhatsApp ───────────────────────────────────────────
+  // ── Pie de página ──────────────────────────────────────────────────────
   function initContact() {
     const E = GR.EMPRESA;
     $('#year').textContent = new Date().getFullYear();
@@ -509,16 +509,6 @@
     $('#f-tel').textContent = E.telefono; $('#f-tel').href = `tel:+${E.whatsapp}`;
     $('#f-mail').textContent = E.correo; $('#f-mail').href = `mailto:${E.correo}`;
     document.querySelectorAll('.wa-text-link').forEach((a) => { a.href = GR.waLink(); });
-    $('#wa-btn').href = GR.waLink();
-    $('.wa-ic').innerHTML = GR.waIcon(28);
-    // Mensaje de bienvenida una vez por visita.
-    const bubble = $('#wa-bubble');
-    let seen = false; try { seen = sessionStorage.getItem('grinser_wa') === '1'; } catch {}
-    const hide = () => { bubble.hidden = true; try { sessionStorage.setItem('grinser_wa', '1'); } catch {} };
-    // Aparece a los 3.5 s y se cierra solo a los 9 s para no tapar el contenido.
-    if (!seen) setTimeout(() => { if (!document.body.classList.contains('no-scroll')) { bubble.hidden = false; setTimeout(hide, 9000); } }, 3500);
-    $('.wa-bubble-close').addEventListener('click', hide);
-    $('#wa-btn').addEventListener('click', hide);
   }
 
   function initQuoteForm() {

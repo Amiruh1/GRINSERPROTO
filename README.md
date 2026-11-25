@@ -5,7 +5,7 @@ Sitio estático de **Grinser EIRL – Grupo Innova Service**. Tiene catálogo, c
 ## Estructura
 
 ```
-index.html        Ofertas, carrito e inicio de sesión
+index.html        Ofertas, banner de la tienda principal, carrito e inicio de sesión
 empresa.html      Información de la empresa
 servicio-tecnico.html  Servicios de soporte y mantenimiento
 repuestos-insumos.html Repuestos, consumibles y asesoría por WhatsApp
@@ -21,6 +21,7 @@ js/auth.js        Cuentas, roles, ventana de login y la persona animada
 js/store.js       Ofertas de inicio, carrito, sesión y WhatsApp
 js/productos-page.js  Catálogo y filtros de la página Productos
 js/site-shell.js  Cabecera y pie compartidos por Empresa, Servicio Técnico y Productos
+js/whatsapp-widget.js  Botón flotante de WhatsApp compartido por todas las páginas
 js/admin.js       Panel de empresa
 img/              Logo (con fondo azul y versión transparente para el pie de página)
 ```

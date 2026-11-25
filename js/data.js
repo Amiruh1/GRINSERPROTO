@@ -417,7 +417,7 @@
     whatsapp: '51986385044',
     telefono: '(51) 986 385 044',
     correo: 'ventas@grinser.com.pe',
-    direccion: 'Jirón Lampa Nro. 960 Interior 105, Lima - Perú',
+    direccion: 'Jirón Lampa Nro. 960 Interior 104, Lima - Perú',
   };
   // Tiendas. Para agregar la foto de una tienda, súbela a img/ y escribe la ruta en «foto».
   GR.TIENDAS = [
@@ -426,7 +426,7 @@
       etiqueta: 'Tienda principal',
       direccion: 'Jr. Lampa 960, Interior 104',
       referencia: 'Cercado de Lima',
-      foto: 'img/tienda-jr-lampa.jpg',
+      foto: 'img/tienda-jr-lampa.png',
       mapa: 'Jr. Lampa 960, Lima 15001',
       telefono: '986 385 044',
     },

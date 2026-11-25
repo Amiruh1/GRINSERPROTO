@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261125-7">
+  <link rel="stylesheet" href="css/styles.css?v=20261125-9">
 </head>
 <body>
   <a class="skip-link" href="#tienda">Saltar a los productos en oferta</a>
@@ -62,9 +62,23 @@
   </header>
 
   <main>
+    <section class="wrap home-store-banner" aria-labelledby="home-store-title">
+      <div class="home-store-photo">
+        <img src="img/tienda-jr-lampa.png" alt="Interior de la tienda principal de Grinser en Jr. Lampa, con impresoras y suministros" width="956" height="768" loading="eager">
+        <span class="home-store-tag"><i data-icon="store" data-size="17"></i> Tienda principal · Jr. Lampa</span>
+      </div>
+      <div class="home-store-copy">
+        <span class="kicker">Estamos cerca de ti</span>
+        <h2 id="home-store-title">La solución para tu negocio empieza aquí.</h2>
+        <p>Visítanos y encuentra equipos, consumibles y repuestos con la asesoría cercana de nuestro equipo.</p>
+        <div class="home-store-actions">
+          <a class="btn btn-primary btn-lg" href="empresa.html#tiendas">Visítanos <i data-icon="arrow-right" data-size="18"></i></a>
+        </div>
+      </div>
+    </section>
     <section id="tienda" class="wrap section catalog" tabindex="-1" aria-labelledby="shop-title">
       <div class="section-head">
-        <div><span class="kicker">Ofertas especiales</span><h2 id="shop-title">Productos en Oferta</h2></div>
+        <div><span class="kicker">Ofertas especiales</span><h2 id="shop-title">Productos Destacados</h2></div>
       </div>
       <div id="cat-chips" class="chips" aria-label="Filtrar por categoría" hidden></div>
       <p id="result-info" class="muted result-info" aria-live="polite" hidden></p>
@@ -163,8 +177,9 @@
   <script src="js/productos.js"></script>
   <script src="js/categorias.js"></script>
   <script src="js/sheets-config.js"></script>
-  <script src="js/data.js?v=events-manual-1"></script>
+  <script src="js/data.js?v=events-manual-2"></script>
+  <script src="js/whatsapp-widget.js"></script>
   <script src="js/auth.js"></script>
-  <script src="js/store.js?v=20261125-6"></script>
+  <script src="js/store.js?v=20261125-7"></script>
 </body>
 </html>
