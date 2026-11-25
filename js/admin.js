@@ -8,6 +8,8 @@
   let stockEditing = null;
   let categoryEditing = null;
   let salesPeriod = 'todo';
+  let sheetsWriteKey = '';
+  let catalogSyncing = false;
   const ORDER_STATUSES = ['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado'];
 
   // ── Acceso: sin sesión se pide ingresar como empresa; un cliente vuelve a la tienda ──
@@ -30,18 +32,48 @@
     $('#admin').hidden = false;
     $('#as-user').innerHTML = `<span class="avatar" aria-hidden="true">${GR.esc(u.nombre.trim()[0].toUpperCase())}</span><span class="um-copy"><b>${GR.esc(u.nombre.split(' ')[0])}</b><small>Administrador</small></span>`;
     products = GR.getProducts();
+    renderProductCategoryOptions();
     renderAll();
     return true;
   }
 
   function renderAll() { renderStats(); renderProducts(); renderUsers(); renderSales(); renderCategories(); }
 
+  function renderProductCategoryOptions() {
+    const categories = [...GR.CATEGORIAS];
+    const knownIds = new Set(categories.map((category) => category.id));
+    [...new Set(products.map((product) => product.categoria))].forEach((id) => {
+      if (id && !knownIds.has(id)) categories.push(GR.cat(id));
+    });
+    $('#p-cat').innerHTML = categories.map((category) => `<option value="${GR.esc(category.id)}">${GR.esc(category.nombre)}</option>`).join('');
+  }
+
+  async function syncCatalog(nextProducts, nextCategories) {
+    if (GR.sheetsConfigured && !GR.sheetsConnected) throw new Error('No hay conexión con Google Sheets. Recarga el panel cuando la conexión esté disponible.');
+    if (!GR.sheetsConfigured) return;
+    if (catalogSyncing) throw new Error('Espera a que termine la sincronización actual.');
+    catalogSyncing = true;
+    try {
+      if (!sheetsWriteKey) {
+        const key = window.prompt('Ingresa la clave privada de Google Sheets para guardar los cambios:');
+        if (key == null || !key.trim()) throw new Error('Se canceló la sincronización.');
+        sheetsWriteKey = key.trim();
+      }
+      await GR.saveCatalogToSheets(sheetsWriteKey, { products: nextProducts, categories: nextCategories });
+    } catch (error) {
+      sheetsWriteKey = '';
+      throw error;
+    } finally {
+      catalogSyncing = false;
+    }
+  }
+
   function renderStats() {
     const users = GR.getUsers();
     const items = [
       ['box', 'Productos', products.length],
       ['x', 'Agotados', products.filter((p) => p.stock <= 0).length],
-      ['user', 'Clientes', users.filter((u) => u.rol === 'cliente').length],
+      ['user', GR.sheetsConnected ? 'Cuentas locales' : 'Clientes', users.filter((u) => u.rol === 'cliente').length],
       ['briefcase', 'Administradores', users.filter((u) => u.rol === 'admin').length],
     ];
     $('#stats').innerHTML = items.map(([ic, l, v]) => `<div class="stat">${GR.icon(ic, 20)}<span><b>${v}</b><small>${l}</small></span></div>`).join('');
@@ -60,11 +92,11 @@
           <td class="num">${GR.money(GR.precioFinal(p))}${GR.enOferta(p) ? `<br><s class="muted">${GR.money(p.precio)}</s>` : ''}</td>
           <td class="num"><span class="stock ${p.stock <= 0 ? 'out' : p.stock <= 5 ? 'low' : ''}">${p.stock}</span></td>
           <td><span class="pill ${p.activo !== false ? 'ok' : ''}">${p.activo !== false ? 'Visible' : 'Oculto'}</span></td>
-          <td class="actions">
+          <td class="actions">${GR.sheetsConfigured && !GR.sheetsConnected ? '<span class="pill">Sheets sin conexión</span>' : `
             <button type="button" class="icon-btn" data-stock="${p.id}" aria-label="Registrar movimiento de stock de ${GR.esc(p.nombre)}">${GR.icon('refresh', 16)}</button>
             <button type="button" class="icon-btn" data-edit="${p.id}" aria-label="Editar ${GR.esc(p.nombre)}">${GR.icon('edit', 16)}</button>
             <button type="button" class="icon-btn danger" data-del="${p.id}" aria-label="Eliminar ${GR.esc(p.nombre)}">${GR.icon('trash', 16)}</button>
-          </td>
+          `}</td>
         </tr>`).join('') : '<tr><td colspan="6" class="muted center">Sin productos.</td></tr>'}</tbody>`;
   }
 
@@ -155,7 +187,7 @@
     $('#p-dialog').showModal();
   }
 
-  function saveProduct() {
+  async function saveProduct() {
     const f = $('#p-form').elements;
     const err = (m, el) => { $('#p-err').textContent = m; $('#p-err').hidden = false; el?.focus(); };
     const nombre = f.nombre.value.trim();
@@ -170,12 +202,19 @@
       nombre, categoria: f.categoria.value, marca: f.marca.value.trim(), precio, precio_oferta: oferta, stock,
       descripcion: f.descripcion.value.trim(), imagen: f.imagen.value.trim(), activo: f.activo.checked,
     };
-    products = editing
+    const wasEditing = Boolean(editing);
+    const updatedProducts = editing
       ? products.map((p) => (p.id === editing ? { ...p, ...data } : p))
       : [...products, { id: GR.uid('p'), ...data }];
+    try {
+      await syncCatalog(updatedProducts, GR.CATEGORIAS);
+    } catch (error) {
+      return err(`No se guardó el producto en Google Sheets: ${error.message}`, f.nombre);
+    }
+    products = updatedProducts;
     GR.saveProducts(products);
     $('#p-dialog').close();
-    GR.toast(editing ? 'Producto actualizado.' : 'Producto creado.');
+    GR.toast(wasEditing ? 'Producto actualizado.' : 'Producto creado.');
     renderStats(); renderProducts();
   }
 
@@ -271,7 +310,7 @@
         : '<tr><td colspan="5" class="muted center">Todavía no hay movimientos.</td></tr>'}</tbody>`;
   }
 
-  function saveStockMovement() {
+  async function saveStockMovement() {
     if (!stockEditing) return;
     const form = $('#stock-form').elements;
     const type = form.tipo.value;
@@ -289,7 +328,13 @@
     const after = type === 'entrada' ? before + quantity : type === 'salida' ? before - quantity : quantity;
     if (after < 0) return showError('La salida no puede dejar el stock por debajo de cero.', form.cantidad);
 
-    products = products.map((product) => product.id === stockEditing.id ? { ...product, stock: after } : product);
+    const updatedProducts = products.map((product) => product.id === stockEditing.id ? { ...product, stock: after } : product);
+    try {
+      await syncCatalog(updatedProducts, GR.CATEGORIAS);
+    } catch (error) {
+      return showError(`No se guardó el stock en Google Sheets: ${error.message}`, form.cantidad);
+    }
+    products = updatedProducts;
     GR.saveProducts(products);
     const storedMovements = GR.read('movimientos_stock', []);
     const movements = Array.isArray(storedMovements) ? storedMovements : [];
@@ -312,8 +357,8 @@
         const count = products.filter((product) => product.categoria === category.id).length;
         return `<tr><td><div class="category-name">${GR.icon(category.icon, 20)}<b>${GR.esc(category.nombre)}</b></div></td>
           <td><span class="pill">${count} producto${count === 1 ? '' : 's'}</span></td>
-          <td class="actions"><button type="button" class="icon-btn" data-category-edit="${GR.esc(category.id)}" aria-label="Editar ${GR.esc(category.nombre)}">${GR.icon('edit', 16)}</button>
-            <button type="button" class="icon-btn danger" data-category-delete="${GR.esc(category.id)}" aria-label="Eliminar ${GR.esc(category.nombre)}">${GR.icon('trash', 16)}</button></td></tr>`;
+          <td class="actions">${GR.sheetsConfigured && !GR.sheetsConnected ? '<span class="pill">Sheets sin conexión</span>' : `<button type="button" class="icon-btn" data-category-edit="${GR.esc(category.id)}" aria-label="Editar ${GR.esc(category.nombre)}">${GR.icon('edit', 16)}</button>
+            <button type="button" class="icon-btn danger" data-category-delete="${GR.esc(category.id)}" aria-label="Eliminar ${GR.esc(category.nombre)}">${GR.icon('trash', 16)}</button>`}</td></tr>`;
       }).join('') : '<tr><td colspan="3" class="muted center">No hay categorías configuradas.</td></tr>'}</tbody>`;
   }
 
@@ -329,7 +374,7 @@
     $('#c-dialog').showModal();
   }
 
-  function saveCategory() {
+  async function saveCategory() {
     const form = $('#c-form').elements;
     const name = form.nombre.value.trim();
     const icon = form.icono.value;
@@ -346,6 +391,11 @@
       if (!id || GR.CATEGORIAS.some((item) => item.id === id)) return fail('Ese nombre genera un identificador repetido. Prueba otro nombre.');
       updated = [...GR.CATEGORIAS, { id, nombre: name, icon }];
     }
+    try {
+      await syncCatalog(products, updated);
+    } catch (error) {
+      return fail(`No se guardó la categoría en Google Sheets: ${error.message}`);
+    }
     GR.CATEGORIAS = updated;
     GR.saveCategories(updated);
     $('#c-dialog').close();
@@ -354,20 +404,41 @@
     GR.toast('Categoría guardada.');
   }
 
-  function deleteCategory(id) {
+  async function deleteCategory(id) {
     const category = GR.CATEGORIAS.find((item) => item.id === id);
     if (!category) return;
     if (products.some((product) => product.categoria === id)) return GR.toast('No puedes eliminar una categoría que tiene productos asignados.', 'error');
     if (!confirm(`¿Eliminar la categoría «${category.nombre}»?`)) return;
-    GR.CATEGORIAS = GR.CATEGORIAS.filter((item) => item.id !== id);
+    const updated = GR.CATEGORIAS.filter((item) => item.id !== id);
+    try {
+      await syncCatalog(products, updated);
+    } catch (error) {
+      return GR.toast(`No se eliminó la categoría en Google Sheets: ${error.message}`, 'error');
+    }
+    GR.CATEGORIAS = updated;
     GR.saveCategories(GR.CATEGORIAS);
     refreshCategoryViews();
     GR.toast('Categoría eliminada.');
   }
 
   function refreshCategoryViews() {
-    $('#p-cat').innerHTML = GR.CATEGORIAS.map((category) => `<option value="${GR.esc(category.id)}">${GR.esc(category.nombre)}</option>`).join('');
+    renderProductCategoryOptions();
     renderCategories(); renderProducts();
+  }
+
+  async function deleteProduct(id) {
+    const product = products.find((item) => item.id === id);
+    if (!product || !confirm(`¿Eliminar «${product.nombre}»?`)) return;
+    const updatedProducts = products.filter((item) => item.id !== id);
+    try {
+      await syncCatalog(updatedProducts, GR.CATEGORIAS);
+    } catch (error) {
+      return GR.toast(`No se eliminó el producto en Google Sheets: ${error.message}`, 'error');
+    }
+    products = updatedProducts;
+    GR.saveProducts(products);
+    renderStats(); renderProducts();
+    GR.toast('Producto eliminado.');
   }
 
   // ── Usuarios y roles ───────────────────────────────────────────────────
@@ -429,7 +500,17 @@
 
   document.addEventListener('DOMContentLoaded', async () => {
     await GR.authReady;
-    $('#p-cat').innerHTML = GR.CATEGORIAS.map((c) => `<option value="${c.id}">${GR.esc(c.nombre)}</option>`).join('');
+    await GR.dataReady;
+    if (GR.sheetError) GR.toast('No se pudo cargar Google Sheets; se muestran los datos locales.', 'error');
+    if (GR.sheetsConnected) {
+      ['#p-reset', '#p-export', '#c-export'].forEach((selector) => { $(selector).disabled = true; });
+      $('#p-source-note').textContent = 'Catálogo conectado a Sheets. Los cambios se guardan en la hoja al confirmarlos; la primera vez se solicitará la clave de administración.';
+      $('#c-source-note').textContent = 'Categorías sincronizadas con Sheets. Los cambios se guardan al confirmarlos; la primera vez se solicitará la clave de administración.';
+    } else if (GR.sheetsConfigured) {
+      ['#p-new', '#p-reset', '#p-export', '#c-new', '#c-export'].forEach((selector) => { $(selector).disabled = true; });
+      $('#p-source-note').textContent = 'Google Sheets está configurado, pero no se pudo conectar. No se permiten cambios hasta recuperar la conexión.';
+      $('#c-source-note').textContent = 'Google Sheets está configurado, pero no se pudo conectar. No se permiten cambios hasta recuperar la conexión.';
+    }
     guard();
 
     $('#p-q').addEventListener('input', renderProducts);
@@ -483,10 +564,7 @@
           });
         }
       }
-      if (t.dataset.del) {
-        const p = products.find((x) => x.id === t.dataset.del);
-        if (p && confirm(`¿Eliminar «${p.nombre}»?`)) { products = products.filter((x) => x.id !== p.id); GR.saveProducts(products); renderStats(); renderProducts(); GR.toast('Producto eliminado.'); }
-      }
+      if (t.dataset.del) deleteProduct(t.dataset.del);
       if (t.dataset.toggle) { const u = GR.getUsers().find((x) => x.id === t.dataset.toggle); if (u) updateUser(u.id, { activo: !u.activo }); }
       if (t.dataset.udel) { const u = GR.getUsers().find((x) => x.id === t.dataset.udel); if (u && confirm(`¿Eliminar la cuenta de ${u.nombre}?`)) updateUser(u.id, 'delete'); }
       if (t.hasAttribute('data-dlg-close')) t.closest('dialog').close();
@@ -502,9 +580,8 @@
     // Si la sesión cambia en otra pestaña, se vuelve a validar el acceso.
     window.addEventListener('storage', () => {
       const categories = GR.read('categorias', null);
-      if (Array.isArray(categories)) GR.CATEGORIAS = categories;
+      if (!GR.sheetsConnected && Array.isArray(categories)) GR.CATEGORIAS = categories;
       if (guard()) {
-        $('#p-cat').innerHTML = GR.CATEGORIAS.map((category) => `<option value="${GR.esc(category.id)}">${GR.esc(category.nombre)}</option>`).join('');
         renderAll();
       }
     });

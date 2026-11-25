@@ -23,15 +23,17 @@
   GR.saveUsers = (list) => GR.write('usuarios', list);
 
   /** Crea una cuenta (usado por el registro y por el panel de empresa). */
-  GR.createUser = async ({ nombre, email, password, rol = 'cliente' }) => {
+  GR.createUser = async ({ nombre, email, password, telefono = '', rol = 'cliente' }) => {
     nombre = String(nombre || '').trim(); email = norm(email);
+    telefono = String(telefono || '').trim();
     if (nombre.length < 3) throw new Error('Escribe tu nombre completo.');
     if (!EMAIL_RE.test(email)) throw new Error('Escribe un correo válido.');
+    if (telefono && !/^[0-9+()\s.-]{7,20}$/.test(telefono)) throw new Error('Escribe un teléfono válido.');
     if (String(password || '').length < 8 || password.length > 64) throw new Error('La contraseña debe tener entre 8 y 64 caracteres.');
     const users = GR.getUsers();
     if (users.some((u) => u.email === email)) throw new Error('Ese correo ya está registrado.');
     const salt = newSalt();
-    const user = { id: GR.uid('u'), nombre, email, rol: GR.ROLES[rol] ? rol : 'cliente', activo: true, salt, pass: await hash(salt, password), creado: new Date().toISOString() };
+    const user = { id: GR.uid('u'), nombre, email, telefono, rol: GR.ROLES[rol] ? rol : 'cliente', activo: true, salt, pass: await hash(salt, password), creado: new Date().toISOString() };
     GR.saveUsers([...users, user]);
     return user;
   };
@@ -65,6 +67,9 @@
 
   GR.register = async (data) => {
     await GR.authReady;
+    const email = norm(data.email);
+    if (GR.getUsers().some((user) => user.email === email)) throw new Error('Ese correo ya está registrado.');
+    if (GR.sheetsConfigured) await GR.saveClientToSheets({ nombre: data.nombre, email, telefono: data.telefono });
     const u = await GR.createUser({ ...data, rol: 'cliente' });
     GR.write('sesion', u.id);
     emitSession();
@@ -231,6 +236,7 @@
           <form novalidate>
             ${field('af-nombre', 'Nombre completo', 'user', 'name="nombre" autocomplete="name" maxlength="80"', 'register')}
             ${field('af-email', 'Correo', 'mail', 'name="email" type="email" autocomplete="email" placeholder="tucorreo@ejemplo.com" maxlength="120"')}
+            ${field('af-telefono', 'Teléfono (opcional)', 'phone', 'name="telefono" type="tel" autocomplete="tel" maxlength="20"', 'register')}
             <div class="af-field">
               <label for="af-pass">Contraseña</label>
               <div class="af-input">
@@ -250,7 +256,7 @@
     document.body.appendChild(wrap);
 
     const $ = (s) => wrap.querySelector(s);
-    ui = { wrap, $, svg: $('.persona'), form: $('form'), err: $('.err'), pass: $('#af-pass'), pass2: $('#af-pass2'), email: $('#af-email'), nombre: $('#af-nombre'), eye: $('.af-eye') };
+    ui = { wrap, $, svg: $('.persona'), form: $('form'), err: $('.err'), pass: $('#af-pass'), pass2: $('#af-pass2'), email: $('#af-email'), nombre: $('#af-nombre'), telefono: $('#af-telefono'), eye: $('.af-eye') };
 
     wrap.querySelector('[data-close]').addEventListener('click', close);
     wrap.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => go(b.dataset.mode)));
@@ -290,7 +296,10 @@
     ui.wrap.querySelector('[data-mode="register"]').hidden = empresa;
 
     $('#auth-title').textContent = empresa ? 'Acceso empresa' : reg ? 'Crear cuenta' : 'Iniciar sesión';
-    $('.auth-sub').textContent = reg ? 'Guarda tus datos y haz tus pedidos más rápido.'
+    $('.auth-sub').textContent = reg
+      ? GR.sheetsConfigured
+        ? 'Nombre, correo y teléfono opcional se guardan en la hoja de clientes; la contraseña no se comparte.'
+        : 'Guarda tus datos y haz tus pedidos más rápido.'
       : empresa ? 'Solo para administradores: ingresa al panel de gestión de Grinser.'
       : 'Ingresa para finalizar tus pedidos.';
     $('.af-submit-text').textContent = st.busy ? 'Procesando…' : empresa ? 'Ingresar al panel' : reg ? 'Crear cuenta' : 'Iniciar sesión';
@@ -329,6 +338,7 @@
     const fail = (msg, el) => { showErr(msg); st.failed = true; render(); el?.focus(); };
     if (reg && ui.nombre.value.trim().length < 3) return fail('Escribe tu nombre completo.', ui.nombre);
     if (!EMAIL_RE.test(ui.email.value.trim())) return fail('Escribe un correo válido.', ui.email);
+    if (reg && ui.telefono.value.trim() && !/^[0-9+()\s.-]{7,20}$/.test(ui.telefono.value.trim())) return fail('Escribe un teléfono válido.', ui.telefono);
     if (!ui.pass.value) return fail('Escribe tu contraseña.', ui.pass);
     if (reg && ui.pass.value.length < 8) return fail('La contraseña debe tener al menos 8 caracteres.', ui.pass);
     if (reg && ui.pass.value !== ui.pass2.value) return fail('Las contraseñas no coinciden.', ui.pass2);
@@ -336,7 +346,7 @@
     st.busy = true; render();
     try {
       const u = reg
-        ? await GR.register({ nombre: ui.nombre.value, email: ui.email.value, password: ui.pass.value })
+        ? await GR.register({ nombre: ui.nombre.value, email: ui.email.value, telefono: ui.telefono.value, password: ui.pass.value })
         : await GR.login(ui.email.value, ui.pass.value, st.modo);
       const cb = st.onSuccess;
       st.busy = false;

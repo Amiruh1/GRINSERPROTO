@@ -5,7 +5,7 @@
   const $ = (s) => document.querySelector(s);
   const MAX_QTY = 99;
 
-  let products = GR.getProducts();
+  let products = [];
   let cart = GR.read('carrito', []); // [{ id, cantidad }]
   // cat: 'todas' | 'ofertas' | id de categoría.  nav: enlace resaltado en el menú.
   const state = { cat: 'todas', q: '', sort: 'relevancia', nav: 'inicio' };
@@ -371,6 +371,9 @@
   // ── Eventos ────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', async () => {
     await GR.authReady;
+    await GR.dataReady;
+    products = GR.getProducts();
+    if (GR.sheetError) GR.toast('No se pudo cargar Google Sheets; se muestran los datos locales.', 'error');
     renderUser(); renderNav(); renderCatDrop(); renderCatCards(); renderChips(); saveCart();
     renderStores(); initHero(); initContact(); initQuoteForm();
 
@@ -421,7 +424,7 @@
     window.addEventListener('storage', () => {
       products = GR.getProducts(); cart = GR.read('carrito', []);
       const categories = GR.read('categorias', null);
-      if (Array.isArray(categories)) GR.CATEGORIAS = categories;
+      if (!GR.sheetsConnected && Array.isArray(categories)) GR.CATEGORIAS = categories;
       renderUser(); renderChips(); renderCatCards(); renderCatDrop(); saveCart();
     });
   });

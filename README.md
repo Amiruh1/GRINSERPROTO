@@ -10,6 +10,8 @@ admin.html        Panel de empresa (solo administradores): productos, usuarios y
 css/styles.css    Estilos
 js/productos.js   Catálogo inicial (edítalo o reemplázalo con el que exporta el panel)
 js/categorias.js  Categorías iniciales (edítalo o reemplázalo con el que exporta el panel)
+js/sheets-config.js URL pública de la aplicación web de Google Apps Script
+google-apps-script/Code.gs  API de lectura del catálogo y registro de clientes
 js/data.js        Utilidades, íconos y datos de contacto (WhatsApp, teléfono, correo, dirección)
 js/auth.js        Cuentas, roles, ventana de login y la persona animada
 js/store.js       Cabecera, carrusel, categorías, catálogo, carrito, pie de página y WhatsApp
@@ -18,6 +20,10 @@ img/              Logo (con fondo azul y versión transparente para el pie de p�
 ```
 
 Para cambiar el número de WhatsApp, el teléfono, el correo o la dirección, edita `GR.EMPRESA` en `js/data.js`.
+
+## Conectar Google Sheets
+
+El proyecto incluye un Apps Script en [`google-apps-script/Code.gs`](./google-apps-script/Code.gs) y las instrucciones de configuración en [`google-apps-script/README.md`](./google-apps-script/README.md). Después de desplegarlo, pega la URL `/exec` en `js/sheets-config.js` y publica el sitio. La hoja será la fuente de productos y categorías; el panel puede sincronizar cambios tras configurar la clave `GRINSER_ADMIN_KEY` en Apps Script. Los registros guardan nombre, correo y teléfono opcional en una pestaña privada. Las contraseñas no se envían a Sheets y el inicio de sesión continúa siendo local a cada navegador.
 
 ## Cuentas de prueba
 
@@ -37,10 +43,10 @@ Un cliente que abre `admin.html` vuelve a la tienda. Un administrador no puede e
 
 ## Importante: los datos se guardan en el navegador
 
-Sin servidor, las cuentas, el carrito, los pedidos y los cambios del catálogo se guardan en el `localStorage` de **cada navegador**:
+Sin conectar Google Sheets, las cuentas, el carrito, los pedidos y los cambios del catálogo se guardan en el `localStorage` de **cada navegador**:
 
-- Si el administrador edita productos, esos cambios solo los ve él. Para publicarlos: en el panel pulsa **Exportar productos.js**, reemplaza `js/productos.js` en el repositorio y sube el cambio.
-- Si administra categorías, pulsa **Exportar categorías.js**, reemplaza `js/categorias.js` y sube el cambio para publicarlas en la tienda.
+- Si no conectaste Google Sheets y el administrador edita productos, esos cambios solo los ve él. Para publicarlos: en el panel pulsa **Exportar productos.js**, reemplaza `js/productos.js` en el repositorio y sube el cambio.
+- Si no conectaste Google Sheets y administras categorías, pulsa **Exportar categorías.js**, reemplaza `js/categorias.js` y sube el cambio para publicarlas en la tienda.
 - Las cuentas y contraseñas no están protegidas como en un sistema real. Sirve como demo o prototipo. No guardes datos sensibles.
 
 ## Publicar en GitHub Pages

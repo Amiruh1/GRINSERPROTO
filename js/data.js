@@ -26,13 +26,127 @@
   const storedCategories = GR.read('categorias', null);
   GR.CATEGORIAS = Array.isArray(storedCategories) ? storedCategories : DEFAULT_CATEGORIAS;
   GR.saveCategories = (categories) => GR.write('categorias', categories);
+  const sheetsUrl = String(window.GRINSER_SHEETS_URL || '').trim();
+  let sheetProducts = null;
+  GR.sheetsConfigured = Boolean(sheetsUrl);
+  GR.sheetsConnected = false;
+  GR.sheetError = null;
+  GR.dataReady = Promise.resolve(false);
+
+  if (sheetsUrl) {
+    GR.dataReady = new Promise((resolve, reject) => {
+      const callbackName = `__grinserSheets_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const script = document.createElement('script');
+      const timeout = window.setTimeout(() => finish(new Error('Se agotó el tiempo de espera al cargar Google Sheets.')), 12000);
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        delete window[callbackName];
+        script.remove();
+      };
+      const finish = (error, payload) => {
+        cleanup();
+        if (error) return reject(error);
+        if (!payload || payload.ok !== true || !Array.isArray(payload.products) || !Array.isArray(payload.categories)) {
+          return reject(new Error('Google Sheets devolvió un catálogo con formato inválido.'));
+        }
+        const categories = payload.categories.filter((category) => category && category.id && category.nombre)
+          .map((category) => ({ id: String(category.id), nombre: String(category.nombre), icon: String(category.icon || 'box') }));
+        const products = payload.products.filter((product) => product && product.id && product.nombre && product.categoria)
+          .map((product) => ({
+            ...product,
+            id: String(product.id),
+            nombre: String(product.nombre),
+            categoria: String(product.categoria),
+            marca: String(product.marca || ''),
+            precio: Number(product.precio) || 0,
+            precio_oferta: product.precio_oferta == null || product.precio_oferta === '' ? null : Number(product.precio_oferta),
+            stock: Number(product.stock) || 0,
+            descripcion: String(product.descripcion || ''),
+            imagen: String(product.imagen || ''),
+            activo: product.activo === true || String(product.activo).toLowerCase() === 'true',
+          }));
+        if (!categories.length) return reject(new Error('Google Sheets no contiene categorías válidas.'));
+        GR.CATEGORIAS = categories;
+        sheetProducts = products;
+        GR.sheetsConnected = true;
+        resolve(true);
+      };
+      window[callbackName] = (payload) => finish(null, payload);
+      script.onerror = () => finish(new Error('No se pudo conectar con Google Sheets.'));
+      const separator = sheetsUrl.includes('?') ? '&' : '?';
+      script.src = `${sheetsUrl}${separator}action=catalog&callback=${callbackName}`;
+      document.head.appendChild(script);
+    }).catch((error) => {
+      GR.sheetError = error;
+      return false;
+    });
+  }
+
+  function postToSheets(fields) {
+    return new Promise((resolve, reject) => {
+      if (!sheetsUrl) return reject(new Error('Falta configurar la URL de Google Sheets.'));
+      const bytes = new Uint8Array(16);
+      if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+      else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+      const nonce = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+      const frame = document.createElement('iframe');
+      const form = document.createElement('form');
+      const frameName = `grinser-sheets-${nonce}`;
+      frame.name = frameName;
+      frame.title = 'Sincronización con Google Sheets';
+      frame.style.cssText = 'position:fixed;width:1px;height:1px;left:-10px;bottom:0;border:0;opacity:0';
+      form.method = 'post';
+      form.action = sheetsUrl;
+      form.target = frameName;
+      form.acceptCharset = 'UTF-8';
+      const addField = (name, value) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      };
+      addField('nonce', nonce);
+      Object.entries(fields).forEach(([name, value]) => addField(name, String(value ?? '')));
+      const finish = (error, result) => {
+        window.clearTimeout(timer);
+        window.removeEventListener('message', onMessage);
+        form.remove();
+        frame.remove();
+        if (error) reject(error);
+        else resolve(result);
+      };
+      const onMessage = (event) => {
+        const result = event.data;
+        if (event.source !== frame.contentWindow || !result || result.source !== 'grinser-sheets' || result.nonce !== nonce) return;
+        if (!result.ok) return finish(new Error(result.message || 'No se pudo guardar en Google Sheets.'));
+        finish(null, result);
+      };
+      const timer = window.setTimeout(() => finish(new Error('No se recibió confirmación de Google Sheets. Inténtalo nuevamente.')), 20000);
+      window.addEventListener('message', onMessage);
+      document.body.append(frame, form);
+      form.submit();
+    });
+  }
+
+  GR.saveClientToSheets = ({ nombre, email, telefono = '' }) => postToSheets({
+    action: 'register-client', nombre, email, telefono, website: '',
+  });
+
+  GR.saveCatalogToSheets = async (adminKey, catalog) => {
+    await postToSheets({ action: 'save-catalog', adminKey, catalog: JSON.stringify(catalog) });
+    sheetProducts = catalog.products.map((product) => ({ ...product }));
+    GR.CATEGORIAS = catalog.categories.map((category) => ({ ...category }));
+  };
+
   GR.cat = (id) => GR.CATEGORIAS.find((c) => c.id === id)
     || (id === 'impresoras' ? { id, nombre: 'Equipos de impresión', icon: 'printer' } : { id, nombre: id || 'Sin categoría', icon: 'box' });
   GR.precioFinal = (p) => (p.precio_oferta && p.precio_oferta < p.precio ? p.precio_oferta : p.precio);
   GR.enOferta = (p) => GR.precioFinal(p) < p.precio;
 
-  // Los productos editados en el panel quedan en este navegador; si no hay cambios se usa js/productos.js.
-  GR.getProducts = () => GR.read('productos', null) || (window.GRINSER_PRODUCTOS || []).map((p) => ({ ...p }));
+  // Con Sheets conectado el catálogo remoto prevalece; en modo local se usa el catálogo del navegador.
+  GR.getProducts = () => sheetProducts ? sheetProducts.map((p) => ({ ...p }))
+    : GR.read('productos', null) || (window.GRINSER_PRODUCTOS || []).map((p) => ({ ...p }));
   GR.saveProducts = (list) => GR.write('productos', list);
   GR.resetProducts = () => GR.write('productos', null);
 
