@@ -23,6 +23,8 @@ El panel sincroniza productos al crear, editar, eliminar o registrar movimientos
 
 La tienda abierta en la misma sesión del navegador recibe los cambios del panel inmediatamente. En otros dispositivos, consulta Sheets cada 15 segundos mientras la pestaña está visible y al volver a ella. Para muchos visitantes, ese sondeo frecuente puede alcanzar las cuotas de Apps Script; un sitio de alto tráfico necesita un backend con actualizaciones en tiempo real.
 
+Al publicar cambios de código, sube también los archivos HTML y JavaScript actualizados. Después de la primera publicación, recarga una vez las pestañas abiertas para que carguen la nueva versión; las siguientes actualizaciones del catálogo ya se aplican sin recargar.
+
 Si la tienda muestra un error `401`, revisa en **Gestionar implementaciones** que la aplicación web permita acceso a **Cualquier persona**. Si `GRINSER_ADMIN_KEY` todavía no está configurada, Apps Script también rechazará las escrituras hasta agregarla en las propiedades del proyecto.
 
 ## Qué guarda y qué no
