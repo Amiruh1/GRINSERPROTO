@@ -2,6 +2,7 @@ const SHEETS = {
   products: 'Productos',
   categories: 'Categorias',
   clients: 'Clientes',
+  events: 'Eventos',
 };
 const ADMIN_KEY_PROPERTY = 'GRINSER_ADMIN_KEY';
 
@@ -11,6 +12,19 @@ const PRODUCT_HEADERS = [
 ];
 const CATEGORY_HEADERS = ['id', 'nombre', 'icon'];
 const CLIENT_HEADERS = ['id', 'nombre', 'email', 'telefono', 'creado'];
+const EVENT_HEADERS = ['id', 'habilitado', 'modo', 'evento_manual'];
+const DEFAULT_EVENT_MODE = 'automatic';
+const DEFAULT_MANUAL_EVENT = 'navidad';
+
+const DEFAULT_EVENTS = [
+  ['navidad', true],
+  ['ano_nuevo', true],
+  ['fiestas_patrias', true],
+];
+const DEFAULT_EVENT_ROWS = [
+  ['config', '', DEFAULT_EVENT_MODE, DEFAULT_MANUAL_EVENT],
+  ...DEFAULT_EVENTS.map(([id, enabled]) => [id, enabled, '', '']),
+];
 
 const DEFAULT_CATEGORIES = [
   ['fotocopiadoras', 'Fotocopiadoras', 'copier'],
@@ -41,8 +55,9 @@ function setupGrinserSheets() {
   ensureSheet_(spreadsheet, SHEETS.products, PRODUCT_HEADERS, DEFAULT_PRODUCTS);
   ensureSheet_(spreadsheet, SHEETS.categories, CATEGORY_HEADERS, DEFAULT_CATEGORIES);
   ensureSheet_(spreadsheet, SHEETS.clients, CLIENT_HEADERS, []);
+  ensureSheet_(spreadsheet, SHEETS.events, EVENT_HEADERS, DEFAULT_EVENT_ROWS);
   spreadsheet.setSpreadsheetTimeZone('America/Lima');
-  console.log('Pestañas Productos, Categorias y Clientes preparadas.');
+  console.log('Pestañas Productos, Categorias, Clientes y Eventos preparadas.');
 }
 
 function ensureSheet_(spreadsheet, name, headers, seedRows) {
@@ -58,7 +73,14 @@ function ensureSheet_(spreadsheet, name, headers, seedRows) {
 function doGet(event) {
   const callback = event && event.parameter && event.parameter.callback;
   const catalog = readCatalog_();
-  const json = JSON.stringify({ ok: true, products: catalog.products, categories: catalog.categories });
+  const json = JSON.stringify({
+    ok: true,
+    products: catalog.products,
+    categories: catalog.categories,
+    events: catalog.eventConfig.events,
+    eventMode: catalog.eventConfig.mode,
+    manualEventId: catalog.eventConfig.manualEventId,
+  });
   if (callback) {
     if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(callback)) {
       return ContentService.createTextOutput('Invalid callback').setMimeType(ContentService.MimeType.TEXT);
@@ -90,6 +112,29 @@ function readCatalog_() {
       nombre: String(row.nombre || ''),
       icon: String(row.icon || 'box'),
     })).filter((category) => category.id && category.nombre),
+    eventConfig: readEvents_(spreadsheet),
+  };
+}
+
+function readEvents_(spreadsheet) {
+  const defaults = DEFAULT_EVENTS.map(([id, enabled]) => ({ id: id, enabled: enabled }));
+  const sheet = spreadsheet.getSheetByName(SHEETS.events);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return { events: defaults, mode: DEFAULT_EVENT_MODE, manualEventId: DEFAULT_MANUAL_EVENT };
+  }
+  const rows = readRows_(spreadsheet, SHEETS.events, EVENT_HEADERS);
+  const saved = new Map(rows.filter((row) => row.id !== 'config').map((row) => [String(row.id || ''), row.habilitado]));
+  const config = rows.find((row) => row.id === 'config');
+  const knownManualEvent = DEFAULT_EVENTS.some(([id]) => id === String(config && config.evento_manual || ''));
+  return {
+    events: defaults.map((event) => ({
+      id: event.id,
+      enabled: saved.has(event.id)
+        ? saved.get(event.id) === true || String(saved.get(event.id)).toLowerCase() === 'true'
+        : event.enabled,
+    })),
+    mode: config && config.modo === 'manual' ? 'manual' : DEFAULT_EVENT_MODE,
+    manualEventId: knownManualEvent ? String(config.evento_manual) : DEFAULT_MANUAL_EVENT,
   };
 }
 
@@ -108,6 +153,19 @@ function doPost(event) {
   const nonce = /^[A-Za-z0-9_-]{12,100}$/.test(parameters.nonce || '') ? parameters.nonce : '';
   try {
     if (parameters.action === 'register-client') return registerClient_(parameters, nonce);
+    if (parameters.action === 'save-events') {
+      verifyAdminKey_(parameters.adminKey);
+      const configuration = validateEvents_(JSON.parse(parameters.events || '{}'));
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        writeEvents_(configuration);
+      } finally {
+        lock.releaseLock();
+      }
+      SpreadsheetApp.flush();
+      return registrationResult_(nonce, true, 'Eventos sincronizados.');
+    }
     if (parameters.action === 'save-catalog') {
       verifyAdminKey_(parameters.adminKey);
       const catalog = validateCatalog_(JSON.parse(parameters.catalog || '{}'));
@@ -226,6 +284,54 @@ function validateCatalog_(catalog) {
     };
   });
   return { categories: categories, products: products };
+}
+
+function validateEvents_(configuration) {
+  if (!configuration || typeof configuration !== 'object' || Array.isArray(configuration)) {
+    throw new Error('La configuración de eventos no tiene el formato esperado.');
+  }
+  const events = configuration.events;
+  if (!Array.isArray(events) || events.length !== DEFAULT_EVENTS.length) {
+    throw new Error('La configuración de eventos no tiene el formato esperado.');
+  }
+  const enabledById = new Map();
+  events.forEach((event) => {
+    if (!event || typeof event !== 'object') {
+      throw new Error('Hay una configuración de evento inválida.');
+    }
+    const id = String(event && event.id || '');
+    if (!DEFAULT_EVENTS.some(([knownId]) => knownId === id) || typeof event.enabled !== 'boolean' || enabledById.has(id)) {
+      throw new Error('Hay una configuración de evento inválida.');
+    }
+    enabledById.set(id, event.enabled);
+  });
+  const normalizedEvents = DEFAULT_EVENTS.map(([id]) => {
+    if (!enabledById.has(id)) throw new Error('Falta la configuración de un evento.');
+    return { id: id, enabled: enabledById.get(id) };
+  });
+  const mode = configuration.mode;
+  const manualEventId = String(configuration.manualEventId || '');
+  if (mode !== 'automatic' && mode !== 'manual') {
+    throw new Error('El modo de activación de eventos no es válido.');
+  }
+  if (!DEFAULT_EVENTS.some(([id]) => id === manualEventId)) {
+    throw new Error('El evento seleccionado para el modo manual no es válido.');
+  }
+  if (mode === 'manual' && !enabledById.get(manualEventId)) {
+    throw new Error('Habilita el evento seleccionado antes de mostrarlo manualmente.');
+  }
+  return { events: normalizedEvents, mode: mode, manualEventId: manualEventId };
+}
+
+function writeEvents_(configuration) {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error('No hay una hoja vinculada a este proyecto.');
+  ensureSheet_(spreadsheet, SHEETS.events, EVENT_HEADERS, DEFAULT_EVENT_ROWS);
+  const rows = [
+    ['config', '', configuration.mode, configuration.manualEventId],
+    ...configuration.events.map((event) => [event.id, event.enabled, '', '']),
+  ];
+  replaceSheet_(spreadsheet, SHEETS.events, EVENT_HEADERS, rows, [1, 3, 4]);
 }
 
 function writeCatalog_(catalog) {

@@ -10,6 +10,7 @@
   let salesPeriod = 'todo';
   let sheetsWriteKey = '';
   let catalogSyncing = false;
+  let eventSyncing = false;
   let catalogRefreshInProgress = false;
   let catalogRefreshFailed = false;
   const ORDER_STATUSES = ['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado'];
@@ -39,7 +40,7 @@
     return true;
   }
 
-  function renderAll() { renderStats(); renderProducts(); renderUsers(); renderSales(); renderCategories(); }
+  function renderAll() { renderStats(); renderProducts(); renderUsers(); renderSales(); renderCategories(); renderEvents(); }
 
   function updateCatalogSourceNote() {
     if (GR.sheetsConnected) {
@@ -53,11 +54,35 @@
       $('#p-source-note').textContent = 'Google Sheets está configurado, pero no se pudo conectar. No se permiten cambios hasta recuperar la conexión.';
       $('#c-source-note').textContent = 'Google Sheets está configurado, pero no se pudo conectar. No se permiten cambios hasta recuperar la conexión.';
     }
+    updateEventsSourceNote();
+  }
+
+  function updateEventsSourceNote() {
+    const note = $('#event-source-note');
+    const connected = GR.sheetsConfigured && GR.sheetsConnected;
+    const hasEnabledEvent = GR.EVENTS.some((event) => event.enabled);
+    if (!GR.sheetsConfigured) {
+      note.textContent = 'Configura Google Sheets para guardar estos controles y compartirlos con todos los visitantes.';
+    } else if (!connected) {
+      note.textContent = 'Google Sheets no está conectado. Los eventos no se pueden modificar hasta recuperar la conexión.';
+    } else if (GR.EVENT_MODE === 'manual') {
+      const selected = GR.EVENT_DEFINITIONS.find((event) => event.id === GR.MANUAL_EVENT_ID);
+      note.textContent = `${selected ? selected.name : 'El evento elegido'} se muestra ahora a todos los visitantes. Cambia a automático para volver al calendario.`;
+    } else {
+      note.textContent = 'Conectado a Google Sheets. Automático usa el calendario de Perú. Puedes elegir aquí la temporada que se usará al activar el modo manual.';
+    }
+    note.classList.toggle('event-source-warning', !connected);
+    $('#event-mode').disabled = !connected || eventSyncing;
+    $('#event-mode').querySelector('option[value="manual"]').disabled = !hasEnabledEvent;
+    $('#event-manual').disabled = !connected || eventSyncing || !hasEnabledEvent;
+    $('#event-list').querySelectorAll('[data-event-toggle]').forEach((input) => {
+      input.disabled = !connected || eventSyncing;
+    });
   }
 
   async function refreshCatalogFromSheets() {
     if (!GR.sheetsConfigured || catalogRefreshInProgress ||
-        catalogSyncing || document.visibilityState !== 'visible' ||
+        catalogSyncing || eventSyncing || document.visibilityState !== 'visible' ||
         ['#p-dialog', '#c-dialog', '#stock-dialog'].some((selector) => $(selector).open)) return;
     catalogRefreshInProgress = true;
     try {
@@ -526,13 +551,93 @@
   }
 
   // ── Eventos ────────────────────────────────────────────────────────────
+  function renderEvents() {
+    const host = $('#event-list');
+    if (!host) return;
+    const expanded = new Set([...host.querySelectorAll('[data-event-card][open]')].map((card) => card.dataset.eventCard));
+    const active = GR.getActiveEvent();
+    const connected = GR.sheetsConfigured && GR.sheetsConnected;
+    $('#event-mode').value = GR.EVENT_MODE;
+    $('#event-manual').innerHTML = GR.EVENT_DEFINITIONS.map((event) => {
+      const enabled = GR.EVENTS.some((setting) => setting.id === event.id && setting.enabled);
+      return `<option value="${event.id}" ${enabled ? '' : 'disabled'}>${GR.esc(event.name)}${enabled ? '' : ' (pausado)'}</option>`;
+    }).join('');
+    $('#event-manual').value = GR.MANUAL_EVENT_ID;
+    host.innerHTML = GR.EVENT_DEFINITIONS.map((event) => {
+      const setting = GR.EVENTS.find((item) => item.id === event.id);
+      const enabled = setting ? setting.enabled : true;
+      const status = !enabled ? 'Pausado' : active && active.id === event.id
+        ? GR.EVENT_MODE === 'manual' ? 'Mostrándose manual' : 'Activo ahora'
+        : GR.EVENT_MODE === 'manual' ? 'No seleccionado' : 'Programado';
+      return `
+        <details class="event-card" data-event-card="${event.id}" ${expanded.has(event.id) ? 'open' : ''}>
+          <summary>
+            <span class="event-icon" aria-hidden="true">${GR.esc(event.icon)}</span>
+            <span class="event-copy"><b>${GR.esc(event.name)}</b><small>${GR.esc(event.schedule)}</small></span>
+            <span class="event-status ${enabled ? '' : 'off'}">${status}</span>
+          </summary>
+          <div class="event-card-body">
+            <p>${GR.esc(event.description)}</p>
+            <label class="event-toggle">
+              <input type="checkbox" data-event-toggle="${event.id}" ${enabled ? 'checked' : ''} ${connected && !eventSyncing ? '' : 'disabled'}>
+              <span><b>Habilitar esta temporada</b><small>Disponible para la activación manual o automática.</small></span>
+            </label>
+          </div>
+        </details>`;
+    }).join('');
+    updateEventsSourceNote();
+  }
+
+  async function saveEventSetting(id, enabled) {
+    if (!GR.EVENT_DEFINITIONS.some((event) => event.id === id)) return;
+    if (!enabled && GR.EVENT_MODE === 'manual' && GR.MANUAL_EVENT_ID === id) {
+      GR.toast('Cambia a automático o selecciona otro evento antes de pausar el que se muestra.', 'error');
+      renderEvents();
+      return;
+    }
+    const nextEvents = GR.EVENTS.map((event) => event.id === id ? { ...event, enabled } : { ...event });
+    await saveEventConfiguration(nextEvents, GR.EVENT_MODE, GR.MANUAL_EVENT_ID);
+  }
+
+  async function saveEventConfiguration(events, mode, manualEventId) {
+    if (eventSyncing) { renderEvents(); return; }
+    if (!GR.sheetsConfigured || !GR.sheetsConnected) {
+      GR.toast('Conecta Google Sheets antes de modificar los eventos.', 'error');
+      renderEvents();
+      return;
+    }
+    if (mode === 'manual' && !events.some((event) => event.id === manualEventId && event.enabled)) {
+      GR.toast('Habilita el evento que quieres mostrar manualmente.', 'error');
+      renderEvents();
+      return;
+    }
+    eventSyncing = true;
+    renderEvents();
+    try {
+      if (!sheetsWriteKey) {
+        const key = window.prompt('Ingresa la clave privada de Google Sheets para guardar los eventos:');
+        if (key == null || !key.trim()) throw new Error('Se canceló la sincronización.');
+        sheetsWriteKey = key.trim();
+      }
+      await GR.saveEventsToSheets(sheetsWriteKey, { events, mode, manualEventId });
+      GR.toast(mode === 'manual' ? 'El evento ya se muestra para todos los visitantes.' : 'Modo automático guardado.');
+    } catch (error) {
+      sheetsWriteKey = '';
+      GR.toast(`No se pudieron guardar los eventos: ${error.message}`, 'error');
+    } finally {
+      eventSyncing = false;
+      renderEvents();
+    }
+  }
+
   function showTab(tab) {
     document.querySelectorAll('[data-tab]').forEach((b) => { b.classList.toggle('on', b.dataset.tab === tab); b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'); });
     document.querySelectorAll('.tab').forEach((section) => { section.hidden = section.id !== `tab-${tab}`; });
     $('#stats').hidden = tab !== 'productos';
-    $('#as-title').textContent = ({ productos: 'Catálogo admin', ventas: 'Ventas', categorias: 'Categorías', usuarios: 'Usuarios y roles' })[tab] || 'Panel de empresa';
+    $('#as-title').textContent = ({ productos: 'Catálogo admin', ventas: 'Ventas', categorias: 'Categorías', eventos: 'Eventos', usuarios: 'Usuarios y roles' })[tab] || 'Panel de empresa';
     if (tab === 'ventas') renderSales();
     if (tab === 'categorias') renderCategories();
+    if (tab === 'eventos') renderEvents();
     document.body.classList.remove('menu-open');
   }
 
@@ -550,6 +655,12 @@
     });
 
     $('#p-q').addEventListener('input', renderProducts);
+    $('#event-mode').addEventListener('change', () => {
+      saveEventConfiguration(GR.EVENTS, $('#event-mode').value, GR.MANUAL_EVENT_ID);
+    });
+    $('#event-manual').addEventListener('change', () => {
+      saveEventConfiguration(GR.EVENTS, $('#event-mode').value, $('#event-manual').value);
+    });
     $('#u-q').addEventListener('input', renderUsers);
     $('#s-client').addEventListener('input', renderSales);
     $('#s-product').addEventListener('input', renderSales);
@@ -610,6 +721,7 @@
       if (t.hasAttribute('data-logout')) { GR.logout(); location.href = 'index.html'; }
     });
     document.addEventListener('change', (e) => {
+      if (e.target.dataset.eventToggle) saveEventSetting(e.target.dataset.eventToggle, e.target.checked);
       if (e.target.dataset.rol) updateUser(e.target.dataset.rol, { rol: e.target.value });
       if (e.target.dataset.orderStatus) updateOrderStatus(e.target.dataset.orderStatus, e.target.value);
     });

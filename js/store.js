@@ -148,6 +148,155 @@
       : `<div class="empty">${GR.icon('search', 34)}<p>No encontramos productos con esos filtros.</p><button type="button" class="btn" data-reset>Ver todo el catálogo</button></div>`;
   }
 
+  let seasonalCanvas = null;
+  let seasonalFrame = 0;
+  let seasonalResizeHandler = null;
+  let seasonalEventId = null;
+
+  function stopSeasonalAnimation() {
+    if (seasonalFrame) cancelAnimationFrame(seasonalFrame);
+    seasonalFrame = 0;
+    if (seasonalResizeHandler) window.removeEventListener('resize', seasonalResizeHandler);
+    seasonalResizeHandler = null;
+    if (seasonalCanvas) seasonalCanvas.remove();
+    seasonalCanvas = null;
+  }
+
+  function startSeasonalAnimation(eventId) {
+    const canvas = document.createElement('canvas');
+    canvas.className = 'seasonal-canvas';
+    canvas.setAttribute('aria-hidden', 'true');
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    seasonalCanvas = canvas;
+    document.body.appendChild(canvas);
+
+    const resize = () => {
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(window.innerWidth * ratio);
+      canvas.height = Math.round(window.innerHeight * ratio);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    };
+    seasonalResizeHandler = resize;
+    resize();
+    window.addEventListener('resize', resize);
+    const width = () => window.innerWidth;
+    const height = () => window.innerHeight;
+
+    if (eventId === 'navidad') {
+      const flakes = Array.from({ length: 64 }, () => ({
+        x: Math.random() * width(),
+        y: Math.random() * height(),
+        radius: 1.5 + Math.random() * 3,
+        speed: .5 + Math.random() * 1.5,
+        drift: (Math.random() - .5) * .8,
+      }));
+      const animate = () => {
+        context.clearRect(0, 0, width(), height());
+        context.shadowColor = 'rgba(22, 70, 122, .38)';
+        context.shadowBlur = 4;
+        flakes.forEach((flake) => {
+          flake.y += flake.speed;
+          flake.x += flake.drift + Math.sin(flake.y / 35) * .35;
+          if (flake.y > height() + flake.radius) {
+            flake.y = -flake.radius;
+            flake.x = Math.random() * width();
+          }
+          context.beginPath();
+          context.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
+          context.fillStyle = 'rgba(255, 255, 255, .86)';
+          context.fill();
+        });
+        context.shadowBlur = 0;
+        seasonalFrame = requestAnimationFrame(animate);
+      };
+      animate();
+    } else if (eventId === 'ano_nuevo') {
+      const rockets = [];
+      const particles = [];
+      let frameCount = 0;
+      const launch = () => rockets.push({
+        x: width() * (.12 + Math.random() * .76),
+        y: height() + 4,
+        target: height() * (.16 + Math.random() * .42),
+        speed: 5 + Math.random() * 2,
+        hue: Math.floor(Math.random() * 360),
+      });
+      const animate = () => {
+        context.clearRect(0, 0, width(), height());
+        context.globalCompositeOperation = 'lighter';
+        frameCount += 1;
+        if (frameCount % 48 === 1 && rockets.length < 3) launch();
+        for (let i = rockets.length - 1; i >= 0; i -= 1) {
+          const rocket = rockets[i];
+          rocket.y -= rocket.speed;
+          context.beginPath();
+          context.arc(rocket.x, rocket.y, 2.2, 0, Math.PI * 2);
+          context.fillStyle = `hsl(${rocket.hue}, 100%, 70%)`;
+          context.fill();
+          if (rocket.y <= rocket.target) {
+            const count = 42 + Math.floor(Math.random() * 22);
+            for (let j = 0; j < count; j += 1) {
+              const angle = Math.random() * Math.PI * 2;
+              const speed = 1 + Math.random() * 4;
+              particles.push({
+                x: rocket.x, y: rocket.y,
+                vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                life: 45 + Math.random() * 28, hue: rocket.hue,
+              });
+            }
+            rockets.splice(i, 1);
+          }
+        }
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+          const particle = particles[i];
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+          particle.vy += .035;
+          particle.life -= 1;
+          if (particle.life <= 0) { particles.splice(i, 1); continue; }
+          context.beginPath();
+          context.arc(particle.x, particle.y, 1.8, 0, Math.PI * 2);
+          context.fillStyle = `hsla(${particle.hue}, 100%, 68%, ${Math.min(particle.life / 24, 1)})`;
+          context.fill();
+        }
+        context.globalCompositeOperation = 'source-over';
+        seasonalFrame = requestAnimationFrame(animate);
+      };
+      animate();
+    }
+  }
+
+  function renderSeasonalEvent() {
+    const event = GR.getActiveEvent();
+    const eventId = event ? event.id : '';
+    const banner = $('#seasonal-banner');
+    const logo = $('.brand img');
+    const logoSources = {
+      navidad: 'img/logo-grinser-navidad.png',
+      fiestas_patrias: 'img/logo-grinser-fiestas-patrias.png',
+    };
+    const logoSource = event && logoSources[event.id] ? logoSources[event.id] : 'img/logo-grinser.png';
+    if (logo.getAttribute('src') !== logoSource) logo.setAttribute('src', logoSource);
+    if (event) {
+      document.documentElement.dataset.seasonalEvent = event.id;
+      banner.dataset.event = event.id;
+      banner.textContent = event.banner;
+      banner.hidden = false;
+    } else {
+      delete document.documentElement.dataset.seasonalEvent;
+      banner.hidden = true;
+      banner.textContent = '';
+      delete banner.dataset.event;
+    }
+    if (eventId === seasonalEventId) return;
+    stopSeasonalAnimation();
+    seasonalEventId = eventId;
+    if (!event || document.visibilityState !== 'visible' ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (event.id === 'navidad' || event.id === 'ano_nuevo') startSeasonalAnimation(event.id);
+  }
+
   function renderCatalogUpdate() {
     products = GR.getProducts();
     if (state.cat !== 'todas' && state.cat !== 'ofertas' && !GR.CATEGORIAS.some((category) => category.id === state.cat)) {
@@ -155,6 +304,7 @@
       state.nav = 'todas';
     }
     renderNav(); renderCatDrop(); renderCatCards(); renderChips();
+    renderSeasonalEvent();
     saveCart();
   }
 
@@ -402,16 +552,29 @@
     products = GR.getProducts();
     if (GR.sheetError) GR.toast('No se pudo cargar Google Sheets; se muestran los datos locales.', 'error');
     renderUser(); renderNav(); renderCatDrop(); renderCatCards(); renderChips(); saveCart();
-    renderStores(); initHero(); initContact(); initQuoteForm();
+    renderStores(); renderSeasonalEvent(); initHero(); initContact(); initQuoteForm();
     catalogRefreshFailed = Boolean(GR.sheetError);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    reducedMotion.addEventListener?.('change', () => {
+      seasonalEventId = null;
+      renderSeasonalEvent();
+    });
     GR.subscribeCatalogUpdates(() => {
       catalogRefreshFailed = false;
       renderCatalogUpdate();
     });
     window.setInterval(refreshCatalog, 15000);
+    window.setInterval(renderSeasonalEvent, 60000);
     window.addEventListener('focus', refreshCatalog);
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') refreshCatalog();
+      if (document.visibilityState === 'visible') {
+        seasonalEventId = null;
+        renderSeasonalEvent();
+        refreshCatalog();
+      } else {
+        stopSeasonalAnimation();
+        seasonalEventId = null;
+      }
     });
 
     $('#q').addEventListener('input', (e) => { state.q = e.target.value; renderGrid(); });

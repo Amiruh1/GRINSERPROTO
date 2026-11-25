@@ -824,6 +824,46 @@ body.no-scroll .wa { display: none; }
   .grid { grid-template-columns: 1fr; }
   .cat-toggle span { display: none; }
 }
+
+/* ── Eventos de temporada ──────────────────────────────────────────────── */
+.event-settings { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.event-setting { display: flex; flex-direction: column; gap: 6px; min-width: 240px; color: var(--navy); font-size: 13px; font-weight: 600; }
+.event-setting select { height: 40px; padding: 0 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #f8fafd; color: var(--ink); font-size: 14px; }
+.event-setting select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(33, 95, 154, .12); }
+.event-setting select:disabled { opacity: .6; }
+.event-grid { display: grid; gap: 12px; }
+.event-card { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: var(--shadow); }
+.event-card > summary { display: flex; align-items: center; gap: 14px; padding: 16px 18px; cursor: pointer; list-style: none; }
+.event-card > summary::-webkit-details-marker { display: none; }
+.event-card > summary::after { width: 9px; height: 9px; margin-left: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); content: ""; transform: rotate(45deg); transition: transform .2s; }
+.event-card[open] > summary::after { transform: rotate(225deg); }
+.event-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; background: var(--soft); font-size: 23px; }
+.event-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.35; }
+.event-copy b { color: var(--navy); }
+.event-copy small { color: var(--muted); }
+.event-status { padding: 4px 10px; border-radius: 99px; background: #e8f6ee; color: var(--ok); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.event-status.off { background: #eef1f5; color: var(--muted); }
+.event-card-body { padding: 0 18px 18px 76px; }
+.event-card-body p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.event-toggle { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: #f5f8fc; cursor: pointer; }
+.event-toggle input { width: 18px; height: 18px; accent-color: var(--blue); }
+.event-toggle span { display: flex; flex-direction: column; line-height: 1.35; }
+.event-toggle small { color: var(--muted); }
+.event-toggle input:disabled { cursor: not-allowed; }
+.seasonal-banner { position: relative; z-index: 29; padding: 9px 16px; color: #fff; font-size: 14px; font-weight: 700; letter-spacing: .07em; text-align: center; }
+.seasonal-banner[data-event="navidad"] { background: linear-gradient(90deg, #0d653f, #15784a, #0d653f); }
+.seasonal-banner[data-event="ano_nuevo"] { background: linear-gradient(90deg, #101c46, #4a2d83, #101c46); }
+.seasonal-banner[data-event="fiestas_patrias"] { background: linear-gradient(90deg, #a7192d, #d52d3e, #a7192d); }
+.seasonal-canvas { position: fixed; z-index: 25; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.event-source-warning { color: var(--danger); }
+@media (max-width: 600px) {
+  .event-settings { padding: 12px; }
+  .event-setting { width: 100%; min-width: 0; }
+  .event-card > summary { gap: 10px; padding: 13px; }
+  .event-icon { width: 38px; height: 38px; font-size: 20px; }
+  .event-card-body { padding: 0 13px 13px; }
+  .seasonal-banner { padding: 8px 12px; font-size: 12px; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

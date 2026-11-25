@@ -6,11 +6,11 @@
   <title>Grinser · Panel de empresa</title>
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#16467a">
-  <link rel="icon" href="img/logo-grinser.png">
+  <link rel="icon" type="image/png" href="img/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=20261125-5">
 </head>
 <body class="admin-body">
   <div id="guard" class="guard"><p class="muted">Cargando…</p></div>
@@ -23,6 +23,7 @@
         <button type="button" class="as-link" data-tab="ventas"><i data-icon="cart" data-size="19"></i> Ventas</button>
         <button type="button" class="as-link on" data-tab="productos"><i data-icon="box" data-size="19"></i> Catálogo admin</button>
         <button type="button" class="as-link" data-tab="categorias"><i data-icon="grid" data-size="19"></i> Categorías</button>
+        <button type="button" class="as-link" data-tab="eventos"><i data-icon="calendar" data-size="19"></i> Eventos</button>
         <button type="button" class="as-link" data-tab="usuarios"><i data-icon="users" data-size="19"></i> Usuarios y roles</button>
         <a class="as-link" href="index.html"><i data-icon="store" data-size="19"></i> Ver tienda</a>
       </nav>
@@ -95,6 +96,28 @@
           </div>
           <p class="note" id="c-source-note">Los cambios se guardan en este navegador. Para publicarlos en la tienda, exporta categorías.js y reemplaza js/categorias.js.</p>
           <div class="table-wrap"><table class="table" id="c-table"></table></div>
+        </section>
+
+        <!-- Eventos -->
+        <section id="tab-eventos" class="tab" hidden>
+          <div class="toolbar">
+            <div><h2 class="tab-heading">Eventos de temporada</h2><p class="muted">Elige si mostrar una temporada según el calendario o activarla manualmente.</p></div>
+          </div>
+          <div class="event-settings">
+            <label class="event-setting" for="event-mode">
+              <span>Modo de activación</span>
+              <select id="event-mode">
+                <option value="automatic">Automático según calendario</option>
+                <option value="manual">Manual: mostrar ahora</option>
+              </select>
+            </label>
+            <label class="event-setting" id="event-manual-wrap" for="event-manual">
+              <span>Evento para activar manualmente</span>
+              <select id="event-manual"></select>
+            </label>
+          </div>
+          <p class="note" id="event-source-note">Los eventos se sincronizan con Google Sheets para mostrarse a todos los visitantes. El calendario usa la hora de Perú y solo se muestra un tema por fecha.</p>
+          <div class="event-grid" id="event-list"></div>
         </section>
 
         <!-- Usuarios -->
@@ -199,8 +222,8 @@
   <script src="js/productos.js"></script>
   <script src="js/categorias.js"></script>
   <script src="js/sheets-config.js"></script>
-  <script src="js/data.js?v=20261125-3"></script>
+  <script src="js/data.js?v=events-manual-1"></script>
   <script src="js/auth.js"></script>
-  <script src="js/admin.js?v=20261125-3"></script>
+  <script src="js/admin.js?v=events-manual-1"></script>
 </body>
 </html>

@@ -26,12 +26,76 @@
   const storedCategories = GR.read('categorias', null);
   GR.CATEGORIAS = Array.isArray(storedCategories) ? storedCategories : DEFAULT_CATEGORIAS;
   GR.saveCategories = (categories) => GR.write('categorias', categories);
+  const EVENT_DEFINITIONS = [
+    { id: 'navidad', name: 'Navidad', schedule: '24 y 25 de diciembre', icon: '🎄', dates: [[12, 24], [12, 25]], banner: '¡Feliz Navidad!', description: 'Gorro navideño en el logo y copos de nieve en la tienda.' },
+    { id: 'ano_nuevo', name: 'Año Nuevo', schedule: '31 de diciembre y 1 de enero', icon: '🎆', dates: [[12, 31], [1, 1]], banner: '¡PRÓSPERO AÑO NUEVO!', description: 'Fuegos artificiales animados y un saludo especial en la tienda.' },
+    { id: 'fiestas_patrias', name: 'Fiestas Patrias', schedule: '28 y 29 de julio', icon: '🇵🇪', dates: [[7, 28], [7, 29]], banner: '¡Felices Fiestas Patrias!', description: 'Escarapela rojiblanca en el logo.' },
+  ];
+  const DEFAULT_EVENTS = EVENT_DEFINITIONS.map(({ id }) => ({ id, enabled: true }));
+  const DEFAULT_EVENT_MODE = 'automatic';
+  const DEFAULT_MANUAL_EVENT = 'navidad';
+  GR.EVENT_DEFINITIONS = EVENT_DEFINITIONS;
+  GR.EVENTS = DEFAULT_EVENTS.map((event) => ({ ...event }));
+  GR.EVENT_MODE = DEFAULT_EVENT_MODE;
+  GR.MANUAL_EVENT_ID = DEFAULT_MANUAL_EVENT;
+  GR.getActiveEvent = (date = new Date()) => {
+    if (GR.EVENT_MODE === 'manual') {
+      return EVENT_DEFINITIONS.find((event) =>
+        event.id === GR.MANUAL_EVENT_ID && GR.EVENTS.some((setting) => setting.id === event.id && setting.enabled),
+      ) || null;
+    }
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Lima',
+      month: 'numeric',
+      day: 'numeric',
+    }).formatToParts(date);
+    const month = Number(parts.find((part) => part.type === 'month').value);
+    const day = Number(parts.find((part) => part.type === 'day').value);
+    return EVENT_DEFINITIONS.find((event) =>
+      GR.EVENTS.some((setting) => setting.id === event.id && setting.enabled) &&
+      event.dates.some(([eventMonth, eventDay]) => eventMonth === month && eventDay === day),
+    ) || null;
+  };
   const sheetsUrl = String(window.GRINSER_SHEETS_URL || '').trim();
   let sheetProducts = null;
   GR.sheetsConfigured = Boolean(sheetsUrl);
   GR.sheetsConnected = false;
   GR.sheetError = null;
   GR.dataReady = Promise.resolve(false);
+
+  function normalizeEvents(events) {
+    if (events == null) events = GR.EVENTS;
+    if (!Array.isArray(events)) throw new Error('Google Sheets devolvió una configuración de eventos inválida.');
+    const settings = new Map();
+    events.forEach((event) => {
+      if (!event || typeof event.id !== 'string' ||
+          !EVENT_DEFINITIONS.some((definition) => definition.id === event.id) ||
+          typeof event.enabled !== 'boolean' || settings.has(event.id)) {
+        throw new Error('Google Sheets devolvió una configuración de eventos inválida.');
+      }
+      settings.set(event.id, event.enabled);
+    });
+    return EVENT_DEFINITIONS.map(({ id }) => ({
+      id,
+      enabled: settings.has(id) ? settings.get(id) : true,
+    }));
+  }
+
+  function normalizeEventMode(mode) {
+    if (mode == null) return GR.EVENT_MODE || DEFAULT_EVENT_MODE;
+    if (mode !== 'automatic' && mode !== 'manual') {
+      throw new Error('Google Sheets devolvió un modo de evento inválido.');
+    }
+    return mode;
+  }
+
+  function normalizeManualEventId(id) {
+    if (id == null) id = GR.MANUAL_EVENT_ID || DEFAULT_MANUAL_EVENT;
+    if (typeof id !== 'string' || !EVENT_DEFINITIONS.some((event) => event.id === id)) {
+      throw new Error('Google Sheets devolvió un evento manual inválido.');
+    }
+    return id;
+  }
 
   function normalizeCatalog(payload) {
     if (!payload || payload.ok === false || !Array.isArray(payload.products) || !Array.isArray(payload.categories)) {
@@ -54,24 +118,46 @@
         activo: product.activo === true || String(product.activo).toLowerCase() === 'true',
       }));
     if (!categories.length) throw new Error('Google Sheets no contiene categorías válidas.');
-    return { categories, products };
+    return {
+      categories,
+      products,
+      events: normalizeEvents(payload.events),
+      eventMode: normalizeEventMode(payload.eventMode),
+      manualEventId: normalizeManualEventId(payload.manualEventId),
+    };
   }
 
-  function catalogSignature(catalog) {
-    return JSON.stringify([
+  function catalogSignature(catalog, includeCatalog = true, includeEvents = true) {
+    const signature = [];
+    if (includeCatalog) signature.push(
       catalog.categories.map((category) => [category.id, category.nombre, category.icon]),
       catalog.products.map((product) => [
         product.id, product.nombre, product.categoria, product.marca, product.precio,
         product.precio_oferta, product.stock, product.descripcion, product.imagen, product.activo,
       ]),
-    ]);
+    );
+    if (includeEvents) signature.push(
+      catalog.events.map((event) => [event.id, event.enabled]),
+      catalog.eventMode,
+      catalog.manualEventId,
+    );
+    return JSON.stringify(signature);
   }
 
   function applyCatalogSnapshot(payload) {
     const catalog = normalizeCatalog(payload);
-    const previous = sheetProducts ? catalogSignature({ categories: GR.CATEGORIAS, products: sheetProducts }) : null;
+    const previous = sheetProducts ? catalogSignature({
+      categories: GR.CATEGORIAS,
+      products: sheetProducts,
+      events: GR.EVENTS,
+      eventMode: GR.EVENT_MODE,
+      manualEventId: GR.MANUAL_EVENT_ID,
+    }) : null;
     GR.CATEGORIAS = catalog.categories;
     sheetProducts = catalog.products;
+    GR.EVENTS = catalog.events;
+    GR.EVENT_MODE = catalog.eventMode;
+    GR.MANUAL_EVENT_ID = catalog.manualEventId;
     GR.sheetsConnected = true;
     GR.sheetError = null;
     return previous !== catalogSignature(catalog);
@@ -132,7 +218,10 @@
   function postToSheets(fields, expectedCatalog) {
     return new Promise((resolve, reject) => {
       if (!sheetsUrl) return reject(new Error('Falta configurar la URL de Google Sheets.'));
-      const expectedSignature = expectedCatalog ? catalogSignature(normalizeCatalog(expectedCatalog)) : null;
+      const expectedState = expectedCatalog ? normalizeCatalog(expectedCatalog) : null;
+      const expectedSignature = expectedState
+        ? catalogSignature(expectedState, fields.action !== 'save-events', fields.action !== 'save-catalog')
+        : null;
       const bytes = new Uint8Array(16);
       if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
       else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
@@ -176,7 +265,13 @@
         try {
           await fetchSheetCatalog();
           if (settled) return;
-          if (catalogSignature({ categories: GR.CATEGORIAS, products: sheetProducts }) === expectedSignature) {
+          if (catalogSignature({
+            categories: GR.CATEGORIAS,
+            products: sheetProducts,
+            events: GR.EVENTS,
+            eventMode: GR.EVENT_MODE,
+            manualEventId: GR.MANUAL_EVENT_ID,
+          }, fields.action !== 'save-events', fields.action !== 'save-catalog') === expectedSignature) {
             finish(null, { ok: true, message: 'Catálogo verificado en Google Sheets.' });
             return;
           }
@@ -216,7 +311,42 @@
     await postToSheets({ action: 'save-catalog', adminKey, catalog: JSON.stringify(catalog) }, catalog);
     sheetProducts = catalog.products.map((product) => ({ ...product }));
     GR.CATEGORIAS = catalog.categories.map((category) => ({ ...category }));
-    GR.publishCatalogUpdate({ products: sheetProducts, categories: GR.CATEGORIAS });
+    GR.publishCatalogUpdate({
+      products: sheetProducts,
+      categories: GR.CATEGORIAS,
+      events: GR.EVENTS,
+      eventMode: GR.EVENT_MODE,
+      manualEventId: GR.MANUAL_EVENT_ID,
+    });
+  };
+
+  GR.saveEventsToSheets = async (adminKey, configuration) => {
+    const snapshot = normalizeCatalog({
+      products: GR.getProducts(),
+      categories: GR.CATEGORIAS,
+      events: configuration.events,
+      eventMode: configuration.mode,
+      manualEventId: configuration.manualEventId,
+    });
+    await postToSheets({
+      action: 'save-events',
+      adminKey,
+      events: JSON.stringify({
+        events: snapshot.events,
+        mode: snapshot.eventMode,
+        manualEventId: snapshot.manualEventId,
+      }),
+    }, snapshot);
+    GR.EVENTS = snapshot.events;
+    GR.EVENT_MODE = snapshot.eventMode;
+    GR.MANUAL_EVENT_ID = snapshot.manualEventId;
+    GR.publishCatalogUpdate({
+      products: GR.getProducts(),
+      categories: GR.CATEGORIAS,
+      events: GR.EVENTS,
+      eventMode: GR.EVENT_MODE,
+      manualEventId: GR.MANUAL_EVENT_ID,
+    });
   };
 
   GR.cat = (id) => GR.CATEGORIAS.find((c) => c.id === id)
@@ -258,6 +388,7 @@
     store: '<path d="M3 9l2-5h14l2 5"/><path d="M4 9v11h16V9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M10 20v-5h4v5"/>',
     download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
     refresh: '<path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
     check: '<path d="m5 12 5 5 9-10"/>',
     menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
     truck: '<path d="M2 6h11v10H2zM13 9h4l4 4v3h-8z"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
