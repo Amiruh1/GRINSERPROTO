@@ -8,7 +8,7 @@
   let products = [];
   let cart = GR.read('carrito', []); // [{ id, cantidad }]
   // cat: 'todas' | 'ofertas' | id de categoría.  nav: enlace resaltado en el menú.
-  const state = { cat: 'ofertas', q: '', sort: 'relevancia', nav: 'ofertas' };
+  const state = { cat: 'destacados', q: '', sort: 'relevancia', nav: 'inicio' };
   let categoryWasSelected = false;
   let catalogRefreshInProgress = false;
   let catalogRefreshFailed = false;
@@ -114,9 +114,12 @@
   // ── Catálogo ───────────────────────────────────────────────────────────
   function filtered() {
     const q = state.q.trim().toLowerCase();
+    const featuredView = state.cat === 'destacados';
     let list = visible().filter((p) =>
-      (state.cat === 'todas' || (state.cat === 'ofertas' ? GR.enOferta(p) : p.categoria === state.cat)) &&
+      (featuredView ? p.categoria === 'fotocopiadoras'
+        : state.cat === 'todas' || (state.cat === 'ofertas' ? GR.enOferta(p) : p.categoria === state.cat)) &&
       (!q || `${p.nombre} ${p.marca} ${GR.cat(p.categoria).nombre} ${p.descripcion}`.toLowerCase().includes(q)));
+    if (featuredView) list = list.slice(-4);
     if (state.sort === 'precio-asc') list.sort((a, b) => GR.precioFinal(a) - GR.precioFinal(b));
     else if (state.sort === 'precio-desc') list.sort((a, b) => GR.precioFinal(b) - GR.precioFinal(a));
     else if (state.sort === 'nombre') list.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
@@ -147,7 +150,9 @@
 
   function renderGrid() {
     const list = filtered();
-    const titulo = state.cat === 'todas' ? 'Nuestros productos' : state.cat === 'ofertas' ? 'Productos Destacados' : GR.cat(state.cat).nombre;
+    const titulo = state.cat === 'todas' ? 'Nuestros productos'
+      : state.cat === 'ofertas' || state.cat === 'destacados' ? 'Productos Destacados'
+        : GR.cat(state.cat).nombre;
     $('#shop-title').textContent = titulo;
     $('#result-info').textContent = `${list.length} producto${list.length === 1 ? '' : 's'}${state.q.trim() ? ` para «${state.q.trim()}»` : ''}`;
     $('#grid').innerHTML = list.length ? list.map(card).join('')
@@ -306,7 +311,8 @@
 
   function renderCatalogUpdate() {
     products = GR.getProducts();
-    if (state.cat !== 'todas' && state.cat !== 'ofertas' && !GR.CATEGORIAS.some((category) => category.id === state.cat)) {
+    if (state.cat !== 'todas' && state.cat !== 'ofertas' && state.cat !== 'destacados' &&
+        !GR.CATEGORIAS.some((category) => category.id === state.cat)) {
       state.cat = 'todas';
       state.nav = 'todas';
     }
