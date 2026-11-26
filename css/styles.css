@@ -719,7 +719,7 @@ body.no-scroll .wa { display: none; }
   .hdr-search input { font-size: 16px; }
   .hdr-search button { width: 36px; height: 36px; }
   .cat-toggle { gap: 8px; padding: 0 14px; font-size: 13px; letter-spacing: .05em; }
-  .cart-pill { min-width: 180px; gap: 8px; padding: 0 14px 0 5px; font-size: 14px; }
+  .cart-pill { min-width: 156px; gap: 8px; padding: 0 12px 0 5px; font-size: 14px; }
   .cart-ic { width: 32px; height: 32px; }
   .nav-links { gap: 18px; }
   .about-band-in { grid-template-columns: minmax(0, 1fr); gap: 16px; }
