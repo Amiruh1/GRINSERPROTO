@@ -515,7 +515,7 @@ body.no-scroll .wa { display: none; }
 .search-sm { flex: 0 1 320px; }
 .note { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: #fff8dc; color: #5c4a00; font-size: 13px; }
 .note code { padding: 1px 6px; border-radius: 6px; background: rgba(0, 0, 0, .06); }
-.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+.table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .table th { padding: 12px 14px; border-bottom: 1px solid var(--line); background: #f7f9fc; color: var(--muted); font-size: 12px; font-weight: 600; text-align: left; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .table td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
@@ -1000,4 +1000,59 @@ body.no-scroll .wa { display: none; }
   .products-hero p { font-size: 14px; }
   .products-search { flex: 1 1 100%; width: 100%; }
   .products-search input { width: 100%; }
+}
+
+/* ── Panel: ventana «Editar producto» (mismo diseño que Novatech, colores de Grinser) ── */
+.pm-dialog { width: min(860px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 0; border-radius: 20px; overflow: hidden; background: #fff; color: var(--ink); box-shadow: 0 30px 80px rgba(0, 0, 0, .35); }
+.pm-dialog[open] { display: flex; flex-direction: column; animation: af-pop .22s cubic-bezier(.2, .9, .3, 1.2); }
+.pm-dialog::backdrop { background: rgba(8, 20, 40, .55); backdrop-filter: blur(3px); }
+.pm-modal { display: flex; flex-direction: column; min-height: 0; max-height: calc(100vh - 32px); }
+.pm-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 22px 64px 22px 24px; background: radial-gradient(circle at 90% 0, rgba(255, 212, 0, .28), transparent 50%), linear-gradient(120deg, var(--navy), var(--navy-2) 60%, var(--blue)); color: #fff; }
+.pm-avatar { display: grid; place-items: center; width: 52px; height: 52px; flex: 0 0 auto; border: 1px solid rgba(255, 212, 0, .45); border-radius: 16px; background: rgba(255, 255, 255, .12); color: var(--yellow); }
+.pm-head h2 { margin: 0; font-size: 23px; font-weight: 600; }
+.pm-head p { margin: 2px 0 0; color: #c8d5e6; font-size: 13.5px; }
+.pm-close { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(255, 255, 255, .3); border-radius: 50%; background: rgba(255, 255, 255, .1); color: #fff; cursor: pointer; }
+.pm-close:hover { background: rgba(255, 255, 255, .2); }
+.pm-body { padding: 20px 24px 22px; overflow-y: auto; }
+.pm-section { margin: 18px 0 10px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--blue); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.pm-section.first { margin-top: 0; padding-top: 0; border-top: 0; }
+.pm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.pm-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pm-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; margin-bottom: 14px; }
+.pm-field > label { font-size: 13px; font-weight: 700; }
+.pm-input { width: 100%; min-height: 46px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: 12px; background: #f8fafd; color: var(--ink); font: inherit; font-size: 15px; transition: border-color .2s, box-shadow .2s, background .2s; }
+textarea.pm-input { padding: 12px 14px; line-height: 1.5; resize: vertical; }
+.pm-input:focus { outline: none; border-color: var(--blue); background: #fff; box-shadow: 0 0 0 4px rgba(33, 95, 154, .14); }
+.pm-input[readonly] { background: #eef2f7; color: var(--navy); font-weight: 700; cursor: default; }
+.pm-input[readonly]:focus { border-color: var(--line); box-shadow: none; }
+.pm-hint { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.pm-hint.is-warn { color: var(--danger); }
+.pm-note { display: flex; align-items: center; gap: 8px; margin: -4px 0 4px; padding: 10px 12px; border-radius: 10px; background: #f4f6fa; color: #4b5263; font-size: 13px; }
+.pm-note .ic { color: var(--blue); }
+.pm-upload { display: flex; align-items: center; gap: 14px; }
+.pm-upload-preview { display: grid; place-items: center; width: 84px; height: 84px; flex: 0 0 auto; overflow: hidden; border: 1.5px dashed #c9d4e3; border-radius: 14px; background: #f8fafd; color: #a0a9b8; }
+.pm-upload-preview img { width: 100%; height: 100%; object-fit: contain; }
+.pm-upload > div { display: flex; flex: 1; flex-direction: column; gap: 6px; min-width: 0; }
+.pm-switches { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin: 4px 0; }
+.pm-switch { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; }
+.pm-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.pm-switch-ui { position: relative; width: 42px; height: 24px; flex: 0 0 auto; border-radius: 99px; background: #d7dbe3; transition: background .2s; }
+.pm-switch-ui::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s, background .2s; }
+.pm-switch input:checked + .pm-switch-ui { background: var(--navy); }
+.pm-switch input:checked + .pm-switch-ui::after { transform: translateX(18px); background: var(--yellow); }
+.pm-switch:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 2px; }
+.pm-switch strong { display: block; font-size: 14px; }
+.pm-switch small { display: block; color: #6b7385; font-size: 12.5px; }
+.pm-body .err { margin: 14px 0 0; }
+.pm-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.pm-foot .btn { min-height: 44px; padding: 0 20px; border-radius: 11px; }
+@media (max-width: 640px) {
+  .pm-dialog { width: 100%; max-width: 100%; max-height: 100dvh; margin: auto 0 0; border-radius: 20px 20px 0 0; }
+  .pm-modal { max-height: 100dvh; }
+  .pm-head { padding: 18px 60px 18px 16px; }
+  .pm-avatar { width: 44px; height: 44px; border-radius: 13px; }
+  .pm-head h2 { font-size: 20px; }
+  .pm-body { padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .pm-grid, .pm-grid.three { grid-template-columns: 1fr; }
+  .pm-foot .btn { flex: 1; }
 }

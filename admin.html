@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261125-10">
+  <link rel="stylesheet" href="css/styles.css?v=20261126-2">
 </head>
 <body class="admin-body">
   <div id="guard" class="guard"><p class="muted">Cargando…</p></div>
@@ -135,22 +135,62 @@
   </div>
 
   <!-- Formulario de producto -->
-  <dialog id="p-dialog" class="dlg" aria-labelledby="p-dlg-title">
-    <form method="dialog" id="p-form" novalidate>
-      <header class="dlg-head"><h2 id="p-dlg-title">Producto</h2><button type="button" class="icon-btn" data-dlg-close aria-label="Cerrar"><i data-icon="x" data-size="18"></i></button></header>
-      <div class="dlg-body form-grid">
-        <label class="span-2">Nombre<input name="nombre" required maxlength="120"></label>
-        <label>Categoría<select name="categoria" id="p-cat"></select></label>
-        <label>Marca<input name="marca" maxlength="60"></label>
-        <label>Precio (S/)<input name="precio" type="number" min="0.1" step="0.01" required></label>
-        <label>Precio de oferta (opcional)<input name="precio_oferta" type="number" min="0" step="0.01"></label>
-        <label>Stock<input name="stock" type="number" min="0" step="1" required></label>
-        <label class="check"><input name="activo" type="checkbox" checked> Visible en la tienda</label>
-        <label class="span-2">Descripción<textarea name="descripcion" rows="3" maxlength="400"></textarea></label>
-        <label class="span-2">URL de imagen (opcional)<input name="imagen" placeholder="img/productos/mi-producto.jpg o https://…" maxlength="400"></label>
-        <p class="err span-2" id="p-err" role="alert" hidden></p>
+  <dialog id="p-dialog" class="pm-dialog" aria-labelledby="p-dlg-title">
+    <form method="dialog" id="p-form" class="pm-modal" novalidate>
+      <header class="pm-head">
+        <span class="pm-avatar" aria-hidden="true"><i data-icon="box" data-size="22"></i></span>
+        <div><h2 id="p-dlg-title">Editar producto</h2><p id="p-dlg-sub"></p></div>
+        <button type="button" class="pm-close" data-dlg-close aria-label="Cerrar"><i data-icon="x" data-size="18"></i></button>
+      </header>
+      <div class="pm-body">
+        <h3 class="pm-section first">Información</h3>
+        <div class="pm-grid">
+          <div class="pm-field"><label for="pf-nombre">Nombre</label><input id="pf-nombre" class="pm-input" name="nombre" required maxlength="120" placeholder="Ej. Fotocopiadora Ricoh IM 2702"></div>
+          <div class="pm-field"><label for="p-cat">Categoría</label><select id="p-cat" class="pm-input" name="categoria"></select></div>
+          <div class="pm-field"><label for="pf-marca">Marca</label><input id="pf-marca" class="pm-input" name="marca" maxlength="60" list="p-marcas" placeholder="Ej. Ricoh"><datalist id="p-marcas"></datalist></div>
+        </div>
+        <div class="pm-field"><label for="pf-desc">Descripción</label><textarea id="pf-desc" class="pm-input" name="descripcion" rows="3" maxlength="400"></textarea></div>
+
+        <h3 class="pm-section">Precios</h3>
+        <div class="pm-grid three">
+          <div class="pm-field"><label for="pf-precio">Precio de venta (S/, con IGV)</label><input id="pf-precio" class="pm-input" name="precio" type="number" min="0.01" step="0.01" required><span class="pm-hint">Lo que paga el cliente.</span></div>
+          <div class="pm-field"><label for="pf-oferta">Precio de oferta (opcional)</label><input id="pf-oferta" class="pm-input" name="precio_oferta" type="number" min="0" step="0.01"><span class="pm-hint">Menor al de venta.</span></div>
+          <div class="pm-field"><label for="pf-final">Precio final en la tienda</label><input id="pf-final" class="pm-input" type="text" readonly tabindex="-1"><span class="pm-hint" id="pf-final-hint">Se calcula solo.</span></div>
+        </div>
+
+        <h3 class="pm-section">Inventario</h3>
+        <div class="pm-grid">
+          <div class="pm-field" id="pf-stock-wrap"><label for="pf-stock">Stock inicial</label><input id="pf-stock" class="pm-input" name="stock" type="number" min="0" step="1" required><span class="pm-hint">Unidades disponibles al crear el producto.</span></div>
+          <div class="pm-field" id="pf-stock-now-wrap"><label for="pf-stock-now">Stock actual</label><input id="pf-stock-now" class="pm-input" type="text" readonly tabindex="-1"><span class="pm-hint">Se avisa como «poco stock» con 5 unidades o menos.</span></div>
+        </div>
+        <p class="pm-note" id="pf-stock-note"><i data-icon="refresh" data-size="16"></i> El stock se cambia desde el botón “Movimiento de stock” de la tabla, para dejar registro del movimiento.</p>
+
+        <h3 class="pm-section">Imágenes</h3>
+        <div class="pm-field">
+          <label for="pf-imagen">Imagen principal</label>
+          <div class="pm-upload">
+            <span class="pm-upload-preview" id="pf-preview"><i data-icon="image" data-size="26"></i></span>
+            <div>
+              <input id="pf-imagen" class="pm-input" name="imagen" maxlength="400" placeholder="Pega una URL https:// o una ruta como img/productos/foto.jpg">
+              <span class="pm-hint">Se muestra en la tarjeta del producto. Si la dejas vacía, se usa el ícono de la categoría.</span>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="pm-section">Visibilidad</h3>
+        <div class="pm-switches">
+          <label class="pm-switch">
+            <input type="checkbox" role="switch" name="activo" checked>
+            <span class="pm-switch-ui" aria-hidden="true"></span>
+            <span><strong>Visible en la tienda</strong><small>Si lo apagas, los clientes no lo ven.</small></span>
+          </label>
+        </div>
+        <p class="err" id="p-err" role="alert" hidden></p>
+        <footer class="pm-foot">
+          <button type="button" class="btn" data-dlg-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="p-save"><i data-icon="check" data-size="17"></i> <span>Guardar cambios</span></button>
+        </footer>
       </div>
-      <footer class="dlg-foot"><button type="button" class="btn" data-dlg-close>Cancelar</button><button class="btn btn-primary" value="ok">Guardar</button></footer>
     </form>
   </dialog>
 
@@ -222,9 +262,9 @@
   <script src="js/productos.js"></script>
   <script src="js/categorias.js"></script>
   <script src="js/sheets-config.js?v=sheets-url-3"></script>
-  <script src="js/data.js?v=sheet-message-origin-2"></script>
+  <script src="js/data.js?v=product-modal-1"></script>
   <script src="js/whatsapp-widget.js"></script>
   <script src="js/auth.js?v=register-local-first-3"></script>
-  <script src="js/admin.js?v=events-manual-1"></script>
+  <script src="js/admin.js?v=product-modal-1"></script>
 </body>
 </html>

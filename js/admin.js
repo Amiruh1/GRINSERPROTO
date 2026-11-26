@@ -237,26 +237,63 @@
     });
   }
 
+  // Ventana «Editar producto» (mismo diseño que el panel de Novatech).
   function openProduct(id) {
     editing = id || null;
     const p = products.find((x) => x.id === id) || { nombre: '', categoria: GR.CATEGORIAS[0].id, marca: '', precio: '', precio_oferta: '', stock: 0, descripcion: '', imagen: '', activo: true };
     const f = $('#p-form');
     $('#p-dlg-title').textContent = id ? 'Editar producto' : 'Nuevo producto';
+    $('#p-dlg-sub').textContent = id ? p.nombre : 'Completa los datos; podrás editarlos cuando quieras.';
+    $('#p-save span').textContent = id ? 'Guardar cambios' : 'Crear producto';
     $('#p-err').hidden = true;
     for (const k of ['nombre', 'marca', 'precio', 'stock', 'descripcion', 'imagen']) f.elements[k].value = p[k] ?? '';
     f.elements.precio_oferta.value = p.precio_oferta ?? '';
     f.elements.categoria.value = p.categoria;
     f.elements.activo.checked = p.activo !== false;
+    // Al editar, el stock no se cambia aquí: se usa «Movimiento de stock» para dejar registro.
+    $('#pf-stock-wrap').hidden = Boolean(id);
+    $('#pf-stock-now-wrap').hidden = !id;
+    $('#pf-stock-note').hidden = !id;
+    $('#pf-stock-now').value = `${p.stock} unid.`;
+    $('#p-marcas').innerHTML = [...new Set(products.map((x) => x.marca).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'))
+      .map((m) => `<option value="${GR.esc(m)}"></option>`).join('');
+    setProductSaving(false);
+    updateProductPreview();
     $('#p-dialog').showModal();
+    $('#p-dialog .pm-body').scrollTop = 0;
+    f.elements.nombre.focus();
+  }
+
+  function updateProductPreview() {
+    const f = $('#p-form').elements;
+    const precio = Number(f.precio.value);
+    const oferta = f.precio_oferta.value === '' ? null : Number(f.precio_oferta.value);
+    const valida = oferta != null && oferta > 0 && oferta < precio;
+    $('#pf-final').value = precio > 0 ? GR.money(valida ? oferta : precio) : '—';
+    $('#pf-final-hint').textContent = valida ? `Descuento de ${Math.round((1 - oferta / precio) * 100)}% sobre ${GR.money(precio)}.`
+      : oferta != null && precio > 0 ? 'La oferta debe ser menor al precio de venta.' : 'Se calcula solo.';
+    $('#pf-final-hint').classList.toggle('is-warn', oferta != null && precio > 0 && !valida);
+    const url = f.imagen.value.trim();
+    $('#pf-preview').innerHTML = url ? `<img src="${GR.esc(url)}" alt="Vista previa">` : GR.icon('image', 26);
+    const img = $('#pf-preview img');
+    if (img) img.addEventListener('error', () => { $('#pf-preview').innerHTML = GR.icon('image', 26); }, { once: true });
+  }
+
+  function setProductSaving(busy) {
+    const btn = $('#p-save');
+    btn.disabled = busy;
+    btn.innerHTML = busy ? '<span class="spinner" aria-hidden="true"></span> <span>Guardando…</span>'
+      : `${GR.icon('check', 17)} <span>${editing ? 'Guardar cambios' : 'Crear producto'}</span>`;
   }
 
   async function saveProduct() {
     const f = $('#p-form').elements;
-    const err = (m, el) => { $('#p-err').textContent = m; $('#p-err').hidden = false; el?.focus(); };
+    const err = (m, el) => { setProductSaving(false); $('#p-err').textContent = m; $('#p-err').hidden = false; el?.focus(); };
     const nombre = f.nombre.value.trim();
     const precio = Number(f.precio.value);
     const oferta = f.precio_oferta.value === '' ? null : Number(f.precio_oferta.value);
-    const stock = Number(f.stock.value);
+    const current = editing ? products.find((x) => x.id === editing) : null;
+    const stock = current ? current.stock : Number(f.stock.value);
     if (nombre.length < 3) return err('Escribe el nombre del producto.', f.nombre);
     if (!(precio > 0)) return err('El precio debe ser mayor que 0.', f.precio);
     if (oferta != null && !(oferta > 0 && oferta < precio)) return err('El precio de oferta debe ser menor que el precio normal.', f.precio_oferta);
@@ -266,6 +303,8 @@
       descripcion: f.descripcion.value.trim(), imagen: f.imagen.value.trim(), activo: f.activo.checked,
     };
     const wasEditing = Boolean(editing);
+    $('#p-err').hidden = true;
+    setProductSaving(true);
     const updatedProducts = editing
       ? products.map((p) => (p.id === editing ? { ...p, ...data } : p))
       : [...products, { id: GR.uid('p'), ...data }];
@@ -687,7 +726,10 @@
       if (!confirm('¿Restablecer el catálogo al de js/productos.js? Se perderán los cambios hechos en este navegador.')) return;
       GR.resetProducts(); products = GR.getProducts(); renderStats(); renderProducts(); GR.toast('Catálogo restablecido.');
     });
-    $('#p-form').addEventListener('submit', (e) => { e.preventDefault(); saveProduct(); });
+    $('#p-form').addEventListener('submit', (e) => { e.preventDefault(); if (!$('#p-save').disabled) saveProduct(); });
+    // Clic en el fondo oscuro: cierra la ventana (como en Novatech).
+    $('#p-dialog').addEventListener('mousedown', (e) => { if (e.target === e.currentTarget) $('#p-dialog').close(); });
+    $('#p-form').addEventListener('input', (e) => { if (['precio', 'precio_oferta', 'imagen'].includes(e.target.name)) updateProductPreview(); });
     $('#u-form').addEventListener('submit', (e) => { e.preventDefault(); createUser(); });
     $('#c-form').addEventListener('submit', (e) => { e.preventDefault(); saveCategory(); });
     $('#stock-form').addEventListener('submit', (e) => { e.preventDefault(); saveStockMovement(); });
