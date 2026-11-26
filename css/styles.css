@@ -121,11 +121,11 @@ h1, h2, h3 { line-height: 1.15; }
 .nav-product-drop a::after { display: none; }
 .nav-product-drop a .ic { color: var(--blue); }
 .nav-product-drop a:hover { background: var(--soft); }
-.cart-pill { display: flex; align-items: center; gap: 12px; margin-left: auto; height: 46px; padding: 0 20px 0 8px; border: 0; border-radius: 99px; background: var(--navy); color: #fff; font-weight: 700; box-shadow: 0 8px 20px rgba(15, 44, 76, .25); }
+.cart-pill { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; min-width: 180px; margin-left: auto; height: 46px; padding: 0 20px 0 8px; border: 0; border-radius: 99px; background: var(--navy); color: #fff; font-weight: 700; white-space: nowrap; box-shadow: 0 8px 20px rgba(15, 44, 76, .25); }
 .cart-pill { text-decoration: none; }
 .cart-pill:hover { background: var(--blue); }
 .cart-ic { position: relative; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #fff; color: var(--navy); }
-.cart-ic b { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border: 2px solid var(--navy); border-radius: 99px; background: var(--yellow); color: var(--navy); font-size: 11px; line-height: 16px; text-align: center; }
+.cart-ic b { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 3px; border: 1px solid var(--navy); border-radius: 99px; background: var(--yellow); color: var(--navy); font-size: 9px; line-height: 14px; text-align: center; }
 .cart-pill.bump { animation: bump .4s; }
 @keyframes bump { 40% { transform: scale(1.08); } }
 
@@ -709,7 +709,7 @@ body.no-scroll .wa { display: none; }
   .hdr-search input { font-size: 16px; }
   .hdr-search button { width: 36px; height: 36px; }
   .cat-toggle { gap: 8px; padding: 0 14px; font-size: 13px; letter-spacing: .05em; }
-  .cart-pill { gap: 8px; padding: 0 14px 0 5px; font-size: 14px; }
+  .cart-pill { min-width: 180px; gap: 8px; padding: 0 14px 0 5px; font-size: 14px; }
   .cart-ic { width: 32px; height: 32px; }
   .nav-links { gap: 18px; }
   .nav-product-toggle { height: 44px; }

@@ -11,7 +11,7 @@ const PRODUCT_HEADERS = [
   'stock', 'descripcion', 'imagen', 'activo',
 ];
 const CATEGORY_HEADERS = ['id', 'nombre', 'icon'];
-const CLIENT_HEADERS = ['nombre', 'email', 'telefono', 'creado'];
+const CLIENT_HEADERS = ['id', 'nombre', 'email', 'telefono', 'creado'];
 const EVENT_HEADERS = ['id', 'habilitado', 'modo', 'evento_manual'];
 const DEFAULT_EVENT_MODE = 'automatic';
 const DEFAULT_MANUAL_EVENT = 'navidad';
@@ -202,23 +202,66 @@ function registerClient_(parameters, nonce) {
   lock.waitLock(10000);
   try {
     const lastRow = sheet.getLastRow();
-    const emails = lastRow >= 2
-      ? sheet.getRange(2, 2, lastRow - 1, 1).getValues()
-      : [];
-    const matchingIndex = emails.findIndex((row) => String(row[0] || '').trim().toLowerCase() === email);
-    const rowNumber = matchingIndex >= 0 ? matchingIndex + 2 : lastRow + 1;
-    const created = matchingIndex >= 0
-      ? sheet.getRange(rowNumber, 4).getValue() || new Date().toISOString()
+    const columnByHeader = {};
+    for (let column = 1; column <= sheet.getLastColumn(); column += 1) {
+      const header = String(sheet.getRange(1, column).getDisplayValue() || '').trim().toLowerCase();
+      if (header) {
+        if (columnByHeader[header]) throw new Error('La pestaña Clientes tiene encabezados duplicados.');
+        columnByHeader[header] = column;
+      }
+    }
+    ['nombre', 'email', 'telefono', 'creado'].forEach((header) => {
+      if (!columnByHeader[header]) {
+        throw new Error('La pestaña Clientes debe tener las columnas nombre, email, telefono y creado.');
+      }
+    });
+
+    const rowCount = Math.max(0, lastRow - 1);
+    const valuesByHeader = {};
+    Object.keys(columnByHeader).forEach((header) => {
+      if (['id', 'nombre', 'email', 'telefono', 'creado'].includes(header)) {
+        valuesByHeader[header] = rowCount
+          ? sheet.getRange(2, columnByHeader[header], rowCount, 1).getValues().map((row) => row[0])
+          : [];
+      }
+    });
+    const matchingIndex = valuesByHeader.email.findIndex((value) => String(value || '').trim().toLowerCase() === email);
+    const shiftedIndex = matchingIndex < 0 && columnByHeader.id
+      ? valuesByHeader.nombre.findIndex((value, index) => {
+        const displacedPhone = String(valuesByHeader.email[index] || '').trim();
+        const displacedDate = String(valuesByHeader.telefono[index] || '').trim();
+        const createdValue = String(valuesByHeader.creado[index] || '').trim();
+        return String(value || '').trim().toLowerCase() === email &&
+          String(valuesByHeader.id[index] || '').trim() &&
+          (!displacedPhone || /^[0-9+()\s.-]{7,20}$/.test(displacedPhone)) &&
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(displacedDate) &&
+          !createdValue;
+      })
+      : -1;
+    const rowIndex = matchingIndex >= 0 ? matchingIndex : shiftedIndex;
+    const rowNumber = rowIndex >= 0 ? rowIndex + 2 : lastRow + 1;
+    const wasShifted = shiftedIndex >= 0;
+    const created = rowIndex >= 0
+      ? (wasShifted ? valuesByHeader.telefono[rowIndex] : valuesByHeader.creado[rowIndex]) || new Date().toISOString()
       : new Date().toISOString();
-    sheet.getRange(rowNumber, 2).setValue(email);
-    sheet.getRange(rowNumber, 1).setValue(name);
-    sheet.getRange(rowNumber, 3).setValue(phone);
-    sheet.getRange(rowNumber, 4).setValue(created);
+    const id = columnByHeader.id
+      ? (wasShifted ? Utilities.getUuid() : valuesByHeader.id[rowIndex] || Utilities.getUuid())
+      : '';
+    const savedPhone = wasShifted && !phone ? String(valuesByHeader.email[rowIndex] || '') : phone;
+    writeClientRow_(sheet, columnByHeader, rowNumber, { id, name, email, phone: savedPhone, created });
     SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
   }
   return registrationResult_(nonce, true, 'Registro guardado.');
+}
+
+function writeClientRow_(sheet, columnByHeader, rowNumber, client) {
+  sheet.getRange(rowNumber, columnByHeader.email).setValue(client.email);
+  if (columnByHeader.id) sheet.getRange(rowNumber, columnByHeader.id).setValue(client.id);
+  sheet.getRange(rowNumber, columnByHeader.nombre).setValue(client.name);
+  sheet.getRange(rowNumber, columnByHeader.telefono).setValue(client.phone);
+  sheet.getRange(rowNumber, columnByHeader.creado).setValue(client.created);
 }
 
 function verifyAdminKey_(providedKey) {

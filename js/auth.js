@@ -53,15 +53,16 @@
   };
   const emitSession = () => window.dispatchEvent(new CustomEvent('gr:session', { detail: GR.currentUser() }));
   const syncingClients = new Set();
+  const CLIENT_PROFILE_SHEETS_SYNC_VERSION = 2;
   function syncClientProfile(user) {
     if (!GR.sheetsConfigured || !user || user.rol !== 'cliente') return;
     let synced = GR.read('clientesSheetsSync', {});
     if (!synced || typeof synced !== 'object' || Array.isArray(synced)) synced = {};
-    if (synced[user.id] || syncingClients.has(user.id)) return;
+    if (synced[user.id] === CLIENT_PROFILE_SHEETS_SYNC_VERSION || syncingClients.has(user.id)) return;
     syncingClients.add(user.id);
     GR.saveClientToSheets({ nombre: user.nombre, email: user.email, telefono: user.telefono })
       .then(() => {
-        GR.write('clientesSheetsSync', { ...synced, [user.id]: true });
+        GR.write('clientesSheetsSync', { ...synced, [user.id]: CLIENT_PROFILE_SHEETS_SYNC_VERSION });
       })
       .catch((error) => {
         GR.toast(`Tu cuenta está activa en este navegador, pero no se pudo sincronizar el perfil con Google Sheets: ${error.message}`, 'error');

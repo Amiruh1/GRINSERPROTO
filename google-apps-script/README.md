@@ -45,7 +45,7 @@ Si la tienda muestra un error `401`, revisa en **Gestionar implementaciones** qu
 ## Qué guarda y qué no
 
 - **Productos**, **Categorias** y el estado habilitado de **Eventos**: son datos públicos porque afectan lo que aparece en la tienda.
-- **Clientes**: nombre, correo, teléfono opcional y fecha de registro, en las columnas `nombre`, `email`, `telefono` y `creado`. La hoja permanece privada; el endpoint público solo permite registrar y no expone la lista. Reintentar el registro del mismo correo es seguro: no duplica filas y no se bloquea por un período de espera.
+- **Clientes**: nombre, correo, teléfono opcional y fecha de registro, en las columnas `id`, `nombre`, `email`, `telefono` y `creado`. El endpoint también reconoce hojas existentes sin la columna `id`. La hoja permanece privada; el endpoint público solo permite registrar y no expone la lista. Reintentar el registro del mismo correo es seguro: no duplica filas y no se bloquea por un período de espera.
 - Las contraseñas nunca se envían a Sheets. El inicio de sesión actual del sitio sigue siendo local a cada navegador; esto centraliza el perfil del cliente, pero no crea autenticación compartida entre dispositivos.
 - El stock actualizado desde el panel se refleja en Productos; el historial de movimientos y los pedidos siguen guardándose localmente.
 
