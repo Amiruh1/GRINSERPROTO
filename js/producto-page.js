@@ -190,7 +190,7 @@
         const q = Number($('#pd-qty').value) || 1;
         if (GR.addToCart(product.id, q)) {
           qty = 1;
-          if (t.dataset.buy === 'now') { location.href = 'index.html?carrito=1'; return; }
+          if (t.dataset.buy === 'now') { location.href = 'carrito.html'; return; }
         }
         swap('.pd-info', infoHtml());
       }

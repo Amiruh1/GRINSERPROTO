@@ -606,7 +606,7 @@
     $('#q').addEventListener('input', (e) => { state.q = e.target.value; renderGrid(); });
     $('#search-form').addEventListener('submit', (e) => { e.preventDefault(); state.q = $('#q').value; goTo(state.cat === 'todas' || state.cat === 'ofertas' ? state.cat : 'todas'); });
     $('#sort')?.addEventListener('change', (e) => { state.sort = e.target.value; renderGrid(); });
-    $('#cart-btn').addEventListener('click', openCart);
+    $('#cart-btn').addEventListener('click', () => { location.href = 'carrito.html'; });
     $('#checkout').addEventListener('click', checkout);
     $('#cart-clear').addEventListener('click', () => { if (confirm('¿Vaciar el carrito?')) { cart = []; saveCart(); } });
     $('#cat-toggle').addEventListener('click', () => {
@@ -674,6 +674,6 @@
     });
     const params = new URLSearchParams(window.location.search);
     if (params.get('login') === '1') GR.openAuth('login');
-    if (params.get('carrito') === '1') openCart();
+    if (params.get('carrito') === '1') location.replace('carrito.html');
   });
 })();

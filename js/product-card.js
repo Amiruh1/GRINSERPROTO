@@ -56,6 +56,33 @@
       </article>`;
   };
 
+  // ── Carrito ────────────────────────────────────────────────────────────
+  /** Artículos del carrito con los datos actuales del producto (se quitan los que ya no existen o no tienen stock). */
+  GR.cartItems = () => {
+    const products = GR.getProducts();
+    return GR.read('carrito', []).map((item) => {
+      const p = products.find((x) => x.id === item.id && x.activo !== false);
+      if (!p || p.stock <= 0) return null;
+      const cantidad = Math.max(1, Math.min(Number(item.cantidad) || 1, p.stock, MAX_QTY));
+      return { id: p.id, nombre: p.nombre, marca: p.marca, imagen: p.imagen, sku: p.sku, stock: p.stock,
+        cantidad, precio: GR.precioFinal(p), precio_lista: p.precio };
+    }).filter(Boolean);
+  };
+  const saveCart = (items) => {
+    GR.write('carrito', items.map((i) => ({ id: i.id, cantidad: i.cantidad })));
+    window.dispatchEvent(new CustomEvent('gr:cart'));
+  };
+  GR.setCartQty = (id, cantidad) => saveCart(GR.cartItems().map((i) => (i.id === id
+    ? { ...i, cantidad: Math.max(1, Math.min(Number(cantidad) || 1, i.stock, MAX_QTY)) } : i)));
+  GR.removeFromCart = (id) => saveCart(GR.cartItems().filter((i) => i.id !== id));
+  GR.clearCart = () => saveCart([]);
+  GR.cartTotals = (items = GR.cartItems()) => items.reduce((t, i) => {
+    t.count += i.cantidad;
+    t.subtotal += i.precio * i.cantidad;
+    t.ahorro += Math.max(0, i.precio_lista - i.precio) * i.cantidad;
+    return t;
+  }, { count: 0, subtotal: 0, ahorro: 0 });
+
   GR.cartQty = (id) => (GR.read('carrito', []).find((item) => item.id === id) || {}).cantidad || 0;
 
   /** Agrega al carrito sin pasar del stock. Devuelve true si se agregó. */

@@ -38,7 +38,7 @@
             </div>
           </li>
         </ul>
-        <a href="index.html?carrito=1" id="cart-btn" class="cart-pill" aria-label="Abrir carrito">
+        <a href="carrito.html" id="cart-btn" class="cart-pill" aria-label="Abrir carrito">
           <span class="cart-ic">${GR.icon('cart', 20)}<b id="cart-count">0</b></span>
           <span id="cart-sum">S/ 0.00</span>
         </a>
@@ -164,7 +164,7 @@
       ).join('') + `<a href="index.html?categoria=ofertas#tienda" class="hot">${GR.icon('percent', 18)}<span>Ofertas</span></a>`;
     };
     renderCategories();
-    GR.dataReady.then(renderCategories);
+    GR.dataReady.then(() => { renderCategories(); renderCartSummary(); });
     renderUser();
     renderCartSummary();
     renderStores();

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Checkout | Grinser</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#215f9a">
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=20261126-8">
+</head>
+<body>
+  <header id="site-header" class="site-header"></header>
+  <main class="wrap shop-flow" id="co-root">
+    <p class="muted pd-loading">Cargando…</p>
+  </main>
+  <footer id="site-footer" class="footer"></footer>
+
+  <!-- Nueva / editar dirección -->
+  <dialog id="addr-dialog" class="pm-dialog addr-dialog" aria-labelledby="addr-title">
+    <form id="addr-form" class="pm-modal" novalidate>
+      <header class="pm-head">
+        <span class="pm-avatar" aria-hidden="true"><i data-icon="pin" data-size="20"></i></span>
+        <div><h2 id="addr-title">Nueva dirección</h2><p>Datos de entrega para tus pedidos</p></div>
+        <button type="button" class="pm-close" data-addr-close aria-label="Cerrar"><i data-icon="x" data-size="16"></i></button>
+      </header>
+      <div class="pm-body">
+        <div class="adf-grid" id="addr-fields"></div>
+        <label class="adf-default">
+          <input type="checkbox" name="predeterminada">
+          <span><b>Usar como dirección principal</b><small>Se elegirá primero al finalizar una compra.</small></span>
+        </label>
+        <footer class="adf-foot">
+          <button type="button" class="btn adf-cancel" data-addr-close><i data-icon="x" data-size="16"></i> Cancelar</button>
+          <button type="submit" class="btn adf-save"><i data-icon="check" data-size="17"></i> Guardar dirección</button>
+        </footer>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/productos.js"></script>
+  <script src="js/categorias.js"></script>
+  <script src="js/sheets-config.js?v=sheets-url-3"></script>
+  <script src="js/culqi-config.js?v=checkout-1"></script>
+  <script src="js/data.js?v=checkout-1"></script>
+  <script src="js/whatsapp-widget.js"></script>
+  <script src="js/auth.js?v=register-local-first-3"></script>
+  <script src="js/site-shell.js?v=checkout-2"></script>
+  <script src="js/product-card.js?v=checkout-1"></script>
+  <script src="js/checkout-page.js?v=checkout-2"></script>
+</body>
+</html>
