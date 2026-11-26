@@ -202,14 +202,18 @@ function registerClient_(parameters, nonce) {
   lock.waitLock(10000);
   try {
     const lastRow = sheet.getLastRow();
-    const existing = lastRow >= 2
-      ? sheet.getRange(2, 1, lastRow - 1, CLIENT_HEADERS.length).getValues()
+    const emails = lastRow >= 2
+      ? sheet.getRange(2, 2, lastRow - 1, 1).getValues()
       : [];
-    const matchingIndex = existing.findIndex((row) => String(row[1]).trim().toLowerCase() === email);
-    if (matchingIndex >= 0) return registrationResult_(nonce, true, 'Registro procesado.');
-    const record = [name, email, phone, new Date().toISOString()];
-    const rowNumber = lastRow + 1;
-    sheet.getRange(rowNumber, 1, 1, CLIENT_HEADERS.length).setValues([record]);
+    const matchingIndex = emails.findIndex((row) => String(row[0] || '').trim().toLowerCase() === email);
+    const rowNumber = matchingIndex >= 0 ? matchingIndex + 2 : lastRow + 1;
+    const created = matchingIndex >= 0
+      ? sheet.getRange(rowNumber, 4).getValue() || new Date().toISOString()
+      : new Date().toISOString();
+    sheet.getRange(rowNumber, 2).setValue(email);
+    sheet.getRange(rowNumber, 1).setValue(name);
+    sheet.getRange(rowNumber, 3).setValue(phone);
+    sheet.getRange(rowNumber, 4).setValue(created);
     SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
