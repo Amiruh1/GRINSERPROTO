@@ -1,2 +1,2 @@
 // Pega aquí la URL /exec de la implementación web de Google Apps Script.
-window.GRINSER_SHEETS_URL = 'https://script.google.com/macros/s/AKfycby6JTjW3xpXInIm6L3D6YGGzWFvQUbu4Ty9aJkFy85shWT9lmbiLFepSejs7ijXvXqiKA/exec';
+window.GRINSER_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwOXxlBvNsxtoz9bCB6FrSTI0C9PdrfKZwg44WVT3p3MUCVoY805p4N4OEk97KegPalmQ/exec';
