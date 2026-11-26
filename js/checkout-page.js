@@ -175,7 +175,7 @@
         ${err ? `<p class="err" role="alert">${GR.esc(err)}</p>` : ''}
         <div class="co-actions">
           <button type="button" class="btn co-back" data-go-step="1">${GR.icon('chevron-left', 16)} Volver</button>
-          <button type="submit" class="btn co-next" ${busy ? 'disabled' : ''}>${busy ? `<span class="spinner" aria-hidden="true"></span> ${busy === 'cobrando' ? 'Procesando pago…' : 'Abriendo Culqi…'}` : `${GR.icon('lock', 16)} Pagar con Culqi · ${GR.money(total)}`}</button>
+          <button type="submit" class="btn co-next" ${busy ? 'disabled' : ''}>${busy ? `<span class="spinner" aria-hidden="true"></span> ${busy === 'cobrando' ? 'Procesando pago…' : busy === 'preparando' ? 'Preparando pago…' : 'Abriendo Culqi…'}` : `${GR.icon('lock', 16)} Pagar con Culqi · ${GR.money(total)}`}</button>
         </div>
       </form>`;
   }
@@ -280,13 +280,16 @@
   }
 
   /** Abre la ventana de Culqi. onToken recibe el token (tkn_… tarjeta / ype_… Yape). */
-  async function openCulqi(total, onToken) {
+  async function openCulqi(total, culqiOrder, onPaid) {
     await loadCulqi();
     const methods = { ...(CULQI.paymentMethods || { tarjeta: true, yape: true }) };
-    if (total > (CULQI.yapeMax || 2000)) methods.yape = false;
+    if (total > (CULQI.yapeMax || 2000) || !culqiOrder) methods.yape = false;
     const [firstName, ...rest] = f.nombre.trim().split(/\s+/);
+    const settings = { title: 'Grinser', currency: 'PEN', amount: Math.round(total * 100) };
+    // Sin «order», Culqi solo muestra tarjeta: la orden la crea el Apps Script con la llave secreta.
+    if (culqiOrder) settings.order = culqiOrder;
     const config = {
-      settings: { title: 'Grinser', currency: 'PEN', amount: Math.round(total * 100) },
+      settings,
       client: { email: user.email, firstName, lastName: rest.join(' ') },
       options: { lang: 'auto', installments: false, modal: true, paymentMethods: methods, paymentMethodsSort: Object.keys(methods) },
       appearance: {
@@ -301,7 +304,10 @@
       if (culqi.token) {
         const token = culqi.token.id;
         culqi.close();
-        onToken(token);
+        onPaid({ token });
+      } else if (culqi.order) {
+        culqi.close();
+        onPaid({ culqiOrder: culqi.order.id || culqiOrder });
       } else if (culqi.error) {
         err = culqi.error.user_message || culqi.error.merchant_message || 'Culqi no pudo procesar el pago. Inténtalo de nuevo.';
         render();
@@ -364,13 +370,18 @@
   }
 
   /** Con el token de Culqi, el Apps Script crea el cargo; solo si el banco aprueba se confirma el pedido. */
-  async function chargeToken(token) {
+  let preparedOrder = null; // { order, pedido, total, firma } orden de Culqi creada para este carrito
+
+  async function chargeToken({ token = '', culqiOrder = '' }) {
     const items = GR.cartItems();
     const { subtotal } = GR.cartTotals(items);
     busy = 'cobrando'; err = ''; render();
     root.querySelector('.co-next')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     try {
-      const charged = await GR.chargeWithCulqi({ token, email: user.email, total: subtotal, pedido: orderPayload(items) });
+      const charged = await GR.chargeWithCulqi({
+        token, culqiOrder, pedidoId: preparedOrder?.pedido || '', email: user.email, total: subtotal, pedido: orderPayload(items),
+      });
+      preparedOrder = null;
       busy = false;
       createOrder({ proveedor: 'culqi', metodo: charged.metodo, cargo: charged.cargo, estado: 'pagado' }, charged);
     } catch (ex) {
@@ -402,7 +413,26 @@
     }
     busy = 'abriendo'; render();
     try {
-      await openCulqi(subtotal, chargeToken);
+      // Yape necesita una orden de Culqi. Se crea una por carrito (se reutiliza si el cliente cierra y vuelve a abrir).
+      let culqiOrder = '';
+      const yapeOn = CULQI.paymentMethods?.yape !== false && subtotal <= (CULQI.yapeMax || 2000);
+      if (yapeOn) {
+        const items = GR.cartItems();
+        const firma = JSON.stringify([items.map((i) => [i.id, i.cantidad]), subtotal]);
+        if (!preparedOrder || preparedOrder.firma !== firma) {
+          try {
+            busy = 'preparando'; render();
+            const created = await GR.createCulqiOrder({ email: user.email, total: subtotal, pedido: orderPayload(items) });
+            preparedOrder = created.order ? { ...created, firma } : null;
+          } catch (orderError) {
+            preparedOrder = null;
+            GR.toast(`Yape no está disponible ahora (${orderError.message}). Puedes pagar con tarjeta.`, 'error');
+          }
+          busy = 'abriendo'; render();
+        }
+        culqiOrder = preparedOrder?.order || '';
+      }
+      await openCulqi(subtotal, culqiOrder, chargeToken);
     } catch (ex) {
       err = ex.message;
     } finally {

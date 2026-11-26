@@ -34,7 +34,7 @@ El proyecto incluye un Apps Script en [`google-apps-script/Code.gs`](./google-ap
 
 ## Pagos con Culqi
 
-El checkout abre la ventana oficial de Culqi (tarjeta o Yape). Culqi entrega un token y el Apps Script crea el cobro con la llave secreta: recalcula el total con los precios de la hoja, revisa el stock, cobra, descuenta el stock y guarda el pedido en la pestaña **Pedidos**.
+El checkout abre la ventana oficial de Culqi (tarjeta o Yape). Antes de abrirla, el Apps Script crea una **orden** en Culqi: sin orden, Culqi solo muestra tarjeta. Culqi entrega un token y el Apps Script crea el cobro con la llave secreta: recalcula el total con los precios de la hoja, revisa el stock, cobra, descuenta el stock y guarda el pedido en la pestaña **Pedidos**.
 
 1. Llave pública (`pk_test_…` o `pk_live_…`): en `js/culqi-config.js`.
 2. Llave secreta (`sk_test_…` o `sk_live_…`): en Apps Script → **Configuración del proyecto → Propiedades del script** → propiedad `CULQI_SECRET_KEY`. Nunca la pongas en la página ni en el repositorio.

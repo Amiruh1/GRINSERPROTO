@@ -340,10 +340,18 @@
    * Cobra con Culqi desde Apps Script (la llave secreta solo vive allí).
    * Devuelve { pedido, cargo, total, metodo, items } si el banco aprobó el pago.
    */
-  GR.chargeWithCulqi = async ({ token, email, total, pedido }) => {
+  GR.chargeWithCulqi = async ({ token = '', culqiOrder = '', pedidoId = '', email, total, pedido }) => {
     const result = await postToSheets({
-      action: 'culqi-charge', token, email, total: Number(total).toFixed(2), pedido: JSON.stringify(pedido),
+      action: 'culqi-charge', token, culqiOrder, pedidoId, email, total: Number(total).toFixed(2), pedido: JSON.stringify(pedido),
     }, null, 45000);
+    return result.data || {};
+  };
+
+  /** Crea la orden de Culqi en Apps Script (sin orden, el checkout de Culqi solo muestra tarjeta). */
+  GR.createCulqiOrder = async ({ email, total, pedido }) => {
+    const result = await postToSheets({
+      action: 'culqi-order', email, total: Number(total).toFixed(2), pedido: JSON.stringify(pedido),
+    }, null, 30000);
     return result.data || {};
   };
 

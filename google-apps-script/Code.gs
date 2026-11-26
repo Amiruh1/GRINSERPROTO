@@ -198,6 +198,7 @@ function doPost(event) {
   const nonce = /^[A-Za-z0-9_-]{12,100}$/.test(parameters.nonce || '') ? parameters.nonce : '';
   try {
     if (parameters.action === 'register-client') return registerClient_(parameters, nonce);
+    if (parameters.action === 'culqi-order') return createCulqiOrder_(parameters, nonce);
     if (parameters.action === 'culqi-charge') return chargeWithCulqi_(parameters, nonce);
     if (parameters.action === 'save-events') {
       verifyAdminKey_(parameters.adminKey);
@@ -452,18 +453,36 @@ function replaceSheet_(spreadsheet, name, headers, rows, textColumns) {
 }
 
 // ── Pagos con Culqi ──────────────────────────────────────────────────────
-// La página manda el token que entrega la ventana de Culqi y el detalle del pedido.
-// El monto se recalcula aquí con los precios y el stock de la hoja: no se confía en el navegador.
-function chargeWithCulqi_(parameters, nonce) {
+// 1. «culqi-order»: antes de abrir el checkout se crea una ORDEN en Culqi. Sin orden, Culqi solo
+//    muestra tarjeta; con orden habilita Yape y los demás medios.
+// 2. «culqi-charge»: con el token que entrega el checkout (tarjeta o Yape) se crea el CARGO.
+//    Si Culqi devuelve la orden ya pagada, se verifica su estado en Culqi antes de registrar el pedido.
+// El monto siempre se recalcula aquí con los precios y el stock de la hoja: no se confía en el navegador.
+const CULQI_ORDERS_URL = 'https://api.culqi.com/v2/orders';
+
+function culqiSecret_() {
   const secretKey = String(PropertiesService.getScriptProperties().getProperty(CULQI_SECRET_PROPERTY) || '').trim();
   if (!/^sk_(test|live)_/.test(secretKey)) {
     throw new Error('Pagos no configurados: agrega CULQI_SECRET_KEY en las propiedades del proyecto de Apps Script.');
   }
-  const token = String(parameters.token || '').trim();
-  if (!/^[a-z]{3}_(test|live)_[A-Za-z0-9]{6,}$/.test(token)) throw new Error('El pago no es válido. Vuelve a intentarlo.');
-  // Una llave de prueba solo cobra tokens de prueba (y lo mismo en producción).
-  if (token.split('_')[1] !== secretKey.split('_')[1]) throw new Error('El token de pago no corresponde al modo de la tienda (prueba / producción).');
+  return secretKey;
+}
 
+function culqiRequest_(method, url, secretKey, body) {
+  const response = UrlFetchApp.fetch(url, {
+    method: method,
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + secretKey },
+    muteHttpExceptions: true,
+    payload: body ? JSON.stringify(body) : undefined,
+  });
+  let data = {};
+  try { data = JSON.parse(response.getContentText() || '{}'); } catch (error) { data = {}; }
+  return { status: response.getResponseCode(), data: data, text: response.getContentText() };
+}
+
+/** Lee y valida los datos del pedido que envía el checkout. */
+function readCheckout_(parameters) {
   const order = JSON.parse(parameters.pedido || '{}');
   const email = String(parameters.email || '').trim().toLowerCase();
   if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Correo no válido.');
@@ -483,88 +502,168 @@ function chargeWithCulqi_(parameters, nonce) {
   const addressText = [address.direccion_linea1, address.distrito, address.provincia, address.departamento]
     .map((part) => String(part || '').trim()).filter(Boolean).join(', ').slice(0, 300);
   if (addressText.length < 5) throw new Error('Falta la dirección de envío.');
+  const parts = name.split(/\s+/);
+  return {
+    order: order, email: email, name: name, dni: dni, phone: phone, receiptType: receiptType, receipt: receipt,
+    requested: requested, address: address, addressText: addressText,
+    firstName: parts[0], lastName: parts.slice(1).join(' ') || parts[0],
+  };
+}
+
+/** Precio final y stock de cada producto pedido, según la hoja. */
+function priceLines_(rows, requested) {
+  const lines = requested.map((item) => {
+    const id = String(item && item.id || '');
+    const quantity = Number(item && item.cantidad);
+    const index = rows.findIndex((row) => String(row.id) === id);
+    const row = rows[index];
+    const active = row && (row.activo === true || String(row.activo).toLowerCase() === 'true');
+    if (!row || !active) throw new Error('Un producto de tu carrito ya no está disponible.');
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new Error('Cantidad no válida.');
+    const stock = Number(row.stock) || 0;
+    if (stock < quantity) throw new Error(`${row.nombre} ya no tiene stock suficiente (quedan ${stock}).`);
+    const price = Number(row.precio) || 0;
+    const offer = row.precio_oferta === '' || row.precio_oferta == null ? null : Number(row.precio_oferta);
+    const finalPrice = offer && offer > 0 && offer < price ? offer : price;
+    return { id, nombre: String(row.nombre), cantidad: quantity, precio: finalPrice, rowNumber: index + 2, stock };
+  });
+  const total = Math.round(lines.reduce((sum, line) => sum + line.precio * line.cantidad, 0) * 100) / 100;
+  const amount = Math.round(total * 100); // Culqi recibe el monto en céntimos
+  if (amount < 300) throw new Error('El monto mínimo para pagar con Culqi es S/ 3.00.');
+  return { lines: lines, total: total, amount: amount };
+}
+
+function checkExpectedTotal_(parameters, total) {
+  const expected = Number(parameters.total);
+  if (Number.isFinite(expected) && Math.abs(expected - total) > 0.009) {
+    throw new Error(`Los precios cambiaron: el total actual es S/ ${total.toFixed(2)}. Revisa tu carrito y vuelve a intentarlo.`);
+  }
+}
+
+const newOrderId_ = () => 'GR-' + Utilities.getUuid().replace(/-/g, '').slice(0, 8).toUpperCase();
+const validOrderId_ = (value) => /^GR-[A-Z0-9]{8}$/.test(String(value || ''));
+
+/** Crea la orden de Culqi (habilita Yape en el checkout). Devuelve { order, pedido, total }. */
+function createCulqiOrder_(parameters, nonce) {
+  const secretKey = culqiSecret_();
+  const data = readCheckout_(parameters);
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error('No hay una hoja vinculada a este proyecto.');
+  const priced = priceLines_(readRows_(spreadsheet, SHEETS.products, PRODUCT_HEADERS), data.requested);
+  checkExpectedTotal_(parameters, priced.total);
+  const orderId = newOrderId_();
+  const result = culqiRequest_('post', CULQI_ORDERS_URL, secretKey, {
+    amount: priced.amount,
+    currency_code: 'PEN',
+    description: ('Pedido ' + orderId + ' - Grinser').slice(0, 80),
+    order_number: orderId,
+    client_details: { first_name: data.firstName, last_name: data.lastName, email: data.email, phone_number: '+51' + data.phone },
+    expiration_date: Math.floor(Date.now() / 1000) + 60 * 60, // la orden vence en 1 hora
+    metadata: { pedido: orderId, dni: data.dni },
+  });
+  if (result.status < 200 || result.status >= 300 || result.data.object !== 'order' || !result.data.id) {
+    console.error('Culqi no creó la orden', result.status, result.text);
+    throw new Error(result.data.user_message || result.data.merchant_message || 'No se pudo preparar el pago con Yape.');
+  }
+  return registrationResult_(nonce, true, 'Orden creada.', { order: result.data.id, pedido: orderId, total: priced.total });
+}
+
+function chargeWithCulqi_(parameters, nonce) {
+  const secretKey = culqiSecret_();
+  const mode = secretKey.split('_')[1];
+  const token = String(parameters.token || '').trim();
+  const culqiOrder = String(parameters.culqiOrder || '').trim();
+  if (token) {
+    if (!/^[a-z]{3}_(test|live)_[A-Za-z0-9]{6,}$/.test(token)) throw new Error('El pago no es válido. Vuelve a intentarlo.');
+    // Una llave de prueba solo cobra tokens de prueba (y lo mismo en producción).
+    if (token.split('_')[1] !== mode) throw new Error('El token de pago no corresponde al modo de la tienda (prueba / producción).');
+  } else if (!/^ord_(test|live)_[A-Za-z0-9]{6,}$/.test(culqiOrder) || culqiOrder.split('_')[1] !== mode) {
+    throw new Error('El pago no es válido. Vuelve a intentarlo.');
+  }
+  const data = readCheckout_(parameters);
 
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   if (!spreadsheet) throw new Error('No hay una hoja vinculada a este proyecto.');
   ensureSheet_(spreadsheet, SHEETS.orders, ORDER_HEADERS, []);
   const productsSheet = spreadsheet.getSheetByName(SHEETS.products);
+  const ordersSheet = spreadsheet.getSheetByName(SHEETS.orders);
   if (!productsSheet) throw new Error('Falta la pestaña Productos.');
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    // Precio y stock actuales de cada producto pedido.
-    const rows = readRows_(spreadsheet, SHEETS.products, PRODUCT_HEADERS);
-    const stockColumn = PRODUCT_HEADERS.indexOf('stock') + 1;
-    const lines = requested.map((item) => {
-      const id = String(item && item.id || '');
-      const quantity = Number(item && item.cantidad);
-      const index = rows.findIndex((row) => String(row.id) === id);
-      const row = rows[index];
-      const active = row && (row.activo === true || String(row.activo).toLowerCase() === 'true');
-      if (!row || !active) throw new Error('Un producto de tu carrito ya no está disponible.');
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new Error('Cantidad no válida.');
-      const stock = Number(row.stock) || 0;
-      if (stock < quantity) throw new Error(`${row.nombre} ya no tiene stock suficiente (quedan ${stock}).`);
-      const price = Number(row.precio) || 0;
-      const offer = row.precio_oferta === '' || row.precio_oferta == null ? null : Number(row.precio_oferta);
-      const finalPrice = offer && offer > 0 && offer < price ? offer : price;
-      return { id, nombre: String(row.nombre), cantidad: quantity, precio: finalPrice, rowNumber: index + 2, stock };
-    });
-    const total = Math.round(lines.reduce((sum, line) => sum + line.precio * line.cantidad, 0) * 100) / 100;
-    const amount = Math.round(total * 100); // Culqi recibe el monto en céntimos
-    if (amount < 300) throw new Error('El monto mínimo para pagar con Culqi es S/ 3.00.');
-    const expected = Number(parameters.total);
-    if (Number.isFinite(expected) && Math.abs(expected - total) > 0.009) {
-      throw new Error(`Los precios cambiaron: el total actual es S/ ${total.toFixed(2)}. Revisa tu carrito y vuelve a intentarlo.`);
-    }
+    const priced = priceLines_(readRows_(spreadsheet, SHEETS.products, PRODUCT_HEADERS), data.requested);
+    checkExpectedTotal_(parameters, priced.total);
+    const orderId = validOrderId_(parameters.pedidoId) ? String(parameters.pedidoId) : newOrderId_();
+    const payment = token
+      ? chargeToken_(secretKey, token, priced, orderId, data)
+      : verifyPaidOrder_(secretKey, culqiOrder, priced, orderId);
 
-    const orderId = 'GR-' + Utilities.getUuid().replace(/-/g, '').slice(0, 8).toUpperCase();
-    const [firstName, ...lastNames] = name.split(/\s+/);
-    const response = UrlFetchApp.fetch(CULQI_CHARGES_URL, {
-      method: 'post',
-      contentType: 'application/json',
-      headers: { Authorization: 'Bearer ' + secretKey },
-      muteHttpExceptions: true,
-      payload: JSON.stringify({
-        amount: amount,
-        currency_code: 'PEN',
-        email: email,
-        source_id: token,
-        description: ('Pedido ' + orderId + ' - Grinser').slice(0, 80),
-        metadata: { pedido: orderId, dni: dni },
-        antifraud_details: {
-          first_name: firstName, last_name: lastNames.join(' ') || firstName,
-          phone_number: phone, address: String(address.direccion_linea1 || '').slice(0, 100),
-          address_city: String(address.distrito || address.provincia || 'Lima').slice(0, 30), country_code: 'PE',
-        },
-      }),
-    });
-    const status = response.getResponseCode();
-    let charge = {};
-    try { charge = JSON.parse(response.getContentText() || '{}'); } catch (error) { charge = {}; }
-    if (status < 200 || status >= 300 || charge.object !== 'charge' || !charge.id) {
-      console.error('Culqi rechazó el cargo', status, response.getContentText());
-      throw new Error(charge.user_message || charge.merchant_message || 'Tu banco no aprobó el pago. Prueba con otra tarjeta o medio de pago.');
+    // Un mismo pago no se registra dos veces.
+    const paymentColumn = ORDER_HEADERS.indexOf('culqi_cargo') + 1;
+    const lastRow = ordersSheet.getLastRow();
+    if (lastRow > 1 && ordersSheet.getRange(2, paymentColumn, lastRow - 1, 1).getValues().some((row) => String(row[0]) === payment.id)) {
+      throw new Error('Este pago ya fue registrado.');
     }
 
     // Pago aprobado: se descuenta el stock y se guarda el pedido.
-    lines.forEach((line) => productsSheet.getRange(line.rowNumber, stockColumn).setValue(line.stock - line.cantidad));
-    const method = token.indexOf('ype_') === 0 ? 'Yape' : 'Tarjeta';
-    spreadsheet.getSheetByName(SHEETS.orders).appendRow([
-      orderId, new Date().toISOString(), 'pagado', name, dni, phone, email, addressText, receiptType,
-      receiptType === 'factura' ? String(receipt.ruc) : '', receiptType === 'factura' ? String(receipt.razon_social).trim().slice(0, 150) : '',
-      lines.map((line) => `${line.cantidad} x ${line.nombre} (${line.id}) @ ${line.precio.toFixed(2)}`).join(' | '),
-      total, method, charge.id, String(order.notas || '').trim().slice(0, 500),
+    const stockColumn = PRODUCT_HEADERS.indexOf('stock') + 1;
+    priced.lines.forEach((line) => productsSheet.getRange(line.rowNumber, stockColumn).setValue(line.stock - line.cantidad));
+    ordersSheet.appendRow([
+      orderId, new Date().toISOString(), 'pagado', data.name, data.dni, data.phone, data.email, data.addressText, data.receiptType,
+      data.receiptType === 'factura' ? String(data.receipt.ruc) : '',
+      data.receiptType === 'factura' ? String(data.receipt.razon_social).trim().slice(0, 150) : '',
+      priced.lines.map((line) => `${line.cantidad} x ${line.nombre} (${line.id}) @ ${line.precio.toFixed(2)}`).join(' | '),
+      priced.total, payment.method, payment.id, String(data.order.notas || '').trim().slice(0, 500),
     ]);
     SpreadsheetApp.flush();
     return registrationResult_(nonce, true, 'Pago aprobado.', {
-      pedido: orderId, cargo: charge.id, total: total, metodo: method,
-      items: lines.map((line) => ({ id: line.id, nombre: line.nombre, cantidad: line.cantidad, precio: line.precio })),
+      pedido: orderId, cargo: payment.id, total: priced.total, metodo: payment.method,
+      items: priced.lines.map((line) => ({ id: line.id, nombre: line.nombre, cantidad: line.cantidad, precio: line.precio })),
     });
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Cobra el token (tarjeta: tkn_… / Yape: ype_…). */
+function chargeToken_(secretKey, token, priced, orderId, data) {
+  const result = culqiRequest_('post', CULQI_CHARGES_URL, secretKey, {
+    amount: priced.amount,
+    currency_code: 'PEN',
+    email: data.email,
+    source_id: token,
+    description: ('Pedido ' + orderId + ' - Grinser').slice(0, 80),
+    metadata: { pedido: orderId, dni: data.dni },
+    antifraud_details: {
+      first_name: data.firstName, last_name: data.lastName, phone_number: data.phone,
+      address: String(data.address.direccion_linea1 || '').slice(0, 100),
+      address_city: String(data.address.distrito || data.address.provincia || 'Lima').slice(0, 30), country_code: 'PE',
+    },
+  });
+  if (result.status < 200 || result.status >= 300 || result.data.object !== 'charge' || !result.data.id) {
+    console.error('Culqi rechazó el cargo', result.status, result.text);
+    throw new Error(result.data.user_message || result.data.merchant_message || 'Tu banco no aprobó el pago. Prueba con otra tarjeta o medio de pago.');
+  }
+  return { id: result.data.id, method: token.indexOf('ype_') === 0 ? 'Yape' : 'Tarjeta' };
+}
+
+/** Cuando el checkout devuelve la orden, se consulta en Culqi que esté pagada y que sea de este pedido. */
+function verifyPaidOrder_(secretKey, culqiOrder, priced, orderId) {
+  const result = culqiRequest_('get', CULQI_ORDERS_URL + '/' + encodeURIComponent(culqiOrder), secretKey);
+  const order = result.data || {};
+  if (result.status < 200 || result.status >= 300 || order.object !== 'order') {
+    console.error('No se pudo consultar la orden', result.status, result.text);
+    throw new Error('No pudimos verificar el pago. Si se realizó el cobro, escríbenos por WhatsApp.');
+  }
+  if (String(order.order_number) !== orderId || Number(order.amount) !== priced.amount) {
+    throw new Error('El pago no corresponde a este pedido.');
+  }
+  if (String(order.state).toLowerCase() !== 'paid') {
+    console.error('Orden sin pagar', JSON.stringify(order));
+    throw new Error('El pago aún no figura como realizado. Si ya pagaste, escríbenos por WhatsApp para confirmarlo.');
+  }
+  return { id: order.id, method: 'Culqi (orden)' };
 }
 
 function registrationResult_(nonce, ok, message, data) {
