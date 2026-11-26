@@ -27,7 +27,7 @@
 }
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; scroll-padding-top: 150px; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 150px; overflow-x: clip; }
 body { margin: 0; font-family: var(--font); font-size: 15px; line-height: 1.5; color: var(--ink); background: var(--bg); }
 body.no-scroll { overflow: hidden; }
 img { max-width: 100%; }
@@ -645,7 +645,7 @@ body.no-scroll .wa { display: none; }
   .service-layout { gap: 28px; }
   .service-visual { max-width: 420px; min-height: 0; }
   /* Enlaces en una fila que se desliza con el dedo. */
-  .nav-links { order: 3; flex-basis: 100%; gap: 22px; overflow-x: auto; scrollbar-width: none; border-top: 1px solid var(--line); }
+  .nav-links { order: 3; flex-basis: 100%; gap: 22px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; border-top: 1px solid var(--line); }
   .nav-links::-webkit-scrollbar { display: none; }
   .nav-links a { padding: 12px 0; font-size: 13px; }
   .nav-links a::after { bottom: 6px; }
@@ -722,6 +722,9 @@ body.no-scroll .wa { display: none; }
   .cart-pill { min-width: 180px; gap: 8px; padding: 0 14px 0 5px; font-size: 14px; }
   .cart-ic { width: 32px; height: 32px; }
   .nav-links { gap: 18px; }
+  .about-band-in { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .about-band p { grid-column: 1; grid-row: auto; }
+  .about-stat { justify-self: start; }
   .nav-product-toggle { height: 44px; }
   .nav-product-drop { position: fixed; left: 50%; top: 132px; width: min(230px, calc(100vw - 32px)); }
   .nav-links a, .nav-product-toggle { font-size: 12px; }
@@ -767,7 +770,7 @@ body.no-scroll .wa { display: none; }
   .cat-card-ic .ic { width: 24px; height: 24px; }
   .cat-card.is-hot .cat-card-ic { width: 40px; height: 40px; }
 
-  .chips { flex-wrap: nowrap; margin: 0 -14px; padding: 0 14px 4px; overflow-x: auto; scrollbar-width: none; }
+  .chips { flex-wrap: nowrap; margin: 0 -14px; padding: 0 14px 4px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .card-body { gap: 4px; padding: 10px 10px 12px; }
