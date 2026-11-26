@@ -134,10 +134,10 @@
     const agotado = p.stock <= 0;
     return `
       <article class="card ${agotado ? 'is-out' : ''}">
-        <div class="card-media">${media(p)}${off ? `<span class="badge-off">-${off}%</span>` : ''}</div>
+        <a class="card-media" href="producto.html?id=${encodeURIComponent(p.id)}" tabindex="-1" aria-hidden="true">${media(p)}${off ? `<span class="badge-off">-${off}%</span>` : ''}</a>
         <div class="card-body">
           <span class="card-cat">${GR.esc(GR.cat(p.categoria).nombre)}${p.marca ? ` · ${GR.esc(p.marca)}` : ''}</span>
-          <h3 class="card-title">${GR.esc(p.nombre)}</h3>
+          <h3 class="card-title"><a href="producto.html?id=${encodeURIComponent(p.id)}">${GR.esc(p.nombre)}</a></h3>
           <p class="card-desc">${GR.esc(p.descripcion)}</p>
           <div class="card-price"><strong>${GR.money(final)}</strong>${off ? `<s>${GR.money(p.precio)}</s>` : ''}</div>
           <span class="stock ${agotado ? 'out' : p.stock <= 5 ? 'low' : ''}">${agotado ? 'Agotado' : p.stock <= 5 ? `¡Quedan ${p.stock}!` : `${p.stock} en stock`}</span>

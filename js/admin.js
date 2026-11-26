@@ -150,7 +150,7 @@
       <thead><tr><th>Producto</th><th>Categoría</th><th class="num">Precio</th><th class="num">Stock</th><th>Estado</th><th class="actions"><span class="sr-only">Acciones</span></th></tr></thead>
       <tbody>${list.length ? list.map((p) => `
         <tr>
-          <td><div class="t-prod"><span class="t-thumb">${p.imagen ? `<img src="${GR.esc(p.imagen)}" alt="">` : GR.icon(GR.cat(p.categoria).icon, 20)}</span><span><b>${GR.esc(p.nombre)}</b><small>${GR.esc(p.marca || '—')}</small></span></div></td>
+          <td><div class="t-prod"><span class="t-thumb">${p.imagen ? `<img src="${GR.esc(p.imagen)}" alt="">` : GR.icon(GR.cat(p.categoria).icon, 20)}</span><span><b>${GR.esc(p.nombre)}</b><small>${GR.esc(p.sku || 'sin SKU')} · ${GR.esc(p.marca || 'sin marca')}</small></span></div></td>
           <td>${GR.esc(GR.cat(p.categoria).nombre)}</td>
           <td class="num">${GR.money(GR.precioFinal(p))}${GR.enOferta(p) ? `<br><s class="muted">${GR.money(p.precio)}</s>` : ''}</td>
           <td class="num"><span class="stock ${p.stock <= 0 ? 'out' : p.stock <= 5 ? 'low' : ''}">${p.stock}</span></td>
@@ -246,7 +246,12 @@
     $('#p-dlg-sub').textContent = id ? p.nombre : 'Completa los datos; podrás editarlos cuando quieras.';
     $('#p-save span').textContent = id ? 'Guardar cambios' : 'Crear producto';
     $('#p-err').hidden = true;
-    for (const k of ['nombre', 'marca', 'precio', 'stock', 'descripcion', 'imagen']) f.elements[k].value = p[k] ?? '';
+    for (const k of ['nombre', 'sku', 'marca', 'precio', 'stock', 'descripcion', 'imagen', 'garantia']) f.elements[k].value = p[k] ?? '';
+    galleryDraft = GR.imagesOf(p);
+    specsDraft = GR.specsOf(p).map((spec) => ({ ...spec }));
+    $('#pf-gal-url').value = '';
+    renderGalleryDraft();
+    renderSpecsDraft();
     f.elements.precio_oferta.value = p.precio_oferta ?? '';
     f.elements.categoria.value = p.categoria;
     f.elements.activo.checked = p.activo !== false;
@@ -263,6 +268,55 @@
     $('#p-dialog .pm-body').scrollTop = 0;
     f.elements.nombre.focus();
   }
+
+  // ── Fotos adicionales y especificaciones (borradores mientras la ventana está abierta) ──
+  let galleryDraft = [];
+  let specsDraft = [];
+  const SPEC_GROUPS = ['Información del producto', 'Impresión', 'Copiado', 'Escaneo', 'Conectividad', 'Consumibles', 'Papel', 'Características físicas', 'Compatibilidad'];
+
+  function renderGalleryDraft() {
+    $('#pf-gal-label').textContent = `Fotos adicionales (${galleryDraft.length}/8)`;
+    $('#pf-gallery').innerHTML = galleryDraft.map((url, i) => `
+      <div class="pm-gal-thumb">
+        <img src="${GR.esc(url)}" alt="Foto ${i + 2}">
+        <div>
+          <button type="button" class="btn btn-sm" data-gal-move="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Mover a la izquierda">←</button>
+          <button type="button" class="btn btn-sm" data-gal-move="${i}" data-d="1" ${i === galleryDraft.length - 1 ? 'disabled' : ''} aria-label="Mover a la derecha">→</button>
+          <button type="button" class="btn btn-sm pm-danger" data-gal-del="${i}" aria-label="Quitar foto ${i + 2}">✕</button>
+        </div>
+      </div>`).join('');
+    $('#pf-gallery').hidden = !galleryDraft.length;
+    $('#pf-gal-add').hidden = galleryDraft.length >= 8;
+  }
+
+  function addGalleryUrl() {
+    const url = $('#pf-gal-url').value.trim();
+    if (!url) return;
+    if (/^\s*(javascript|vbscript|data):/i.test(url)) return GR.toast('Usa una URL https:// o una ruta del repositorio.', 'error');
+    if (galleryDraft.includes(url)) return GR.toast('Esa foto ya está en la galería.', 'error');
+    galleryDraft = [...galleryDraft, url].slice(0, 8);
+    $('#pf-gal-url').value = '';
+    renderGalleryDraft();
+  }
+
+  function renderSpecsDraft() {
+    $('#spec-groups').innerHTML = [...new Set([...SPEC_GROUPS, ...products.flatMap((x) => GR.specsOf(x).map((spec) => spec.grupo))])]
+      .filter(Boolean).map((g) => `<option value="${GR.esc(g)}"></option>`).join('');
+    $('#pf-specs').innerHTML = specsDraft.map((spec, i) => `
+      <div class="pm-spec-row">
+        <input class="pm-input" list="spec-groups" placeholder="Grupo (ej. Impresión)" value="${GR.esc(spec.grupo)}" data-spec-i="${i}" data-spec-k="grupo" maxlength="60" aria-label="Grupo de la especificación ${i + 1}">
+        <input class="pm-input" placeholder="Característica (ej. Velocidad)" value="${GR.esc(spec.nombre)}" data-spec-i="${i}" data-spec-k="nombre" maxlength="80" aria-label="Característica ${i + 1}">
+        <input class="pm-input" placeholder="Valor (ej. 27 ppm)" value="${GR.esc(spec.valor)}" data-spec-i="${i}" data-spec-k="valor" maxlength="300" aria-label="Valor ${i + 1}">
+        <div class="pm-spec-actions">
+          <button type="button" class="btn btn-sm" data-spec-move="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Subir especificación ${i + 1}" title="Subir">↑</button>
+          <button type="button" class="btn btn-sm" data-spec-move="${i}" data-d="1" ${i === specsDraft.length - 1 ? 'disabled' : ''} aria-label="Bajar especificación ${i + 1}" title="Bajar">↓</button>
+          <button type="button" class="btn btn-sm pm-danger" data-spec-del="${i}" aria-label="Quitar especificación ${i + 1}" title="Quitar">✕</button>
+        </div>
+      </div>`).join('');
+    $('#pf-spec-btn').hidden = specsDraft.length >= 40;
+  }
+
+  const moveItem = (list, i, d) => { const next = [...list]; [next[i], next[i + d]] = [next[i + d], next[i]]; return next; };
 
   function updateProductPreview() {
     const f = $('#p-form').elements;
@@ -298,9 +352,20 @@
     if (!(precio > 0)) return err('El precio debe ser mayor que 0.', f.precio);
     if (oferta != null && !(oferta > 0 && oferta < precio)) return err('El precio de oferta debe ser menor que el precio normal.', f.precio_oferta);
     if (!Number.isInteger(stock) || stock < 0) return err('El stock debe ser un número entero de 0 o más.', f.stock);
+    const sku = f.sku.value.trim();
+    if (sku && products.some((x) => x.id !== editing && String(x.sku || '').toLowerCase() === sku.toLowerCase())) return err('Ya hay otro producto con ese SKU.', f.sku);
+    const especificaciones = specsDraft
+      .map((spec) => ({ grupo: spec.grupo.trim() || 'Información del producto', nombre: spec.nombre.trim().replace(/\s*:+\s*$/, ''), valor: spec.valor.trim() }))
+      .filter((spec) => spec.nombre || spec.valor);
+    const incompleta = specsDraft.findIndex((spec) => (spec.nombre.trim() || spec.valor.trim()) && !(spec.nombre.trim() && spec.valor.trim()));
+    if (incompleta >= 0) {
+      const campo = specsDraft[incompleta].nombre.trim() ? 'valor' : 'nombre';
+      return err(`Completa la característica y el valor de la especificación ${incompleta + 1} (o quítala).`, $(`[data-spec-i="${incompleta}"][data-spec-k="${campo}"]`));
+    }
     const data = {
       nombre, categoria: f.categoria.value, marca: f.marca.value.trim(), precio, precio_oferta: oferta, stock,
       descripcion: f.descripcion.value.trim(), imagen: f.imagen.value.trim(), activo: f.activo.checked,
+      sku, imagenes: [...galleryDraft], especificaciones, garantia: f.garantia.value.trim(),
     };
     const wasEditing = Boolean(editing);
     $('#p-err').hidden = true;
@@ -728,6 +793,25 @@
     });
     $('#p-form').addEventListener('submit', (e) => { e.preventDefault(); if (!$('#p-save').disabled) saveProduct(); });
     // Clic en el fondo oscuro: cierra la ventana (como en Novatech).
+    $('#pf-gal-btn').addEventListener('click', addGalleryUrl);
+    $('#pf-gal-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addGalleryUrl(); } });
+    $('#pf-spec-btn').addEventListener('click', () => {
+      specsDraft = [...specsDraft, { grupo: specsDraft.at(-1)?.grupo || 'Información del producto', nombre: '', valor: '' }];
+      renderSpecsDraft();
+      $(`[data-spec-i="${specsDraft.length - 1}"][data-spec-k="nombre"]`).focus();
+    });
+    $('#pf-specs').addEventListener('input', (e) => {
+      const i = Number(e.target.dataset.specI);
+      if (Number.isInteger(i) && specsDraft[i]) specsDraft[i][e.target.dataset.specK] = e.target.value;
+    });
+    $('#p-dialog').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.galMove) { galleryDraft = moveItem(galleryDraft, Number(b.dataset.galMove), Number(b.dataset.d)); renderGalleryDraft(); }
+      if (b.dataset.galDel) { galleryDraft = galleryDraft.filter((_, k) => k !== Number(b.dataset.galDel)); renderGalleryDraft(); }
+      if (b.dataset.specMove) { specsDraft = moveItem(specsDraft, Number(b.dataset.specMove), Number(b.dataset.d)); renderSpecsDraft(); }
+      if (b.dataset.specDel) { specsDraft = specsDraft.filter((_, k) => k !== Number(b.dataset.specDel)); renderSpecsDraft(); }
+    });
     $('#p-dialog').addEventListener('mousedown', (e) => { if (e.target === e.currentTarget) $('#p-dialog').close(); });
     $('#p-form').addEventListener('input', (e) => { if (['precio', 'precio_oferta', 'imagen'].includes(e.target.name)) updateProductPreview(); });
     $('#u-form').addEventListener('submit', (e) => { e.preventDefault(); createUser(); });

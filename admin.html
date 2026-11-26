@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261126-3">
+  <link rel="stylesheet" href="css/styles.css?v=20261126-5">
 </head>
 <body class="admin-body">
   <div id="guard" class="guard"><p class="muted">Cargando…</p></div>
@@ -146,10 +146,11 @@
         <h3 class="pm-section first">Información</h3>
         <div class="pm-grid">
           <div class="pm-field"><label for="pf-nombre">Nombre</label><input id="pf-nombre" class="pm-input" name="nombre" required maxlength="120" placeholder="Ej. Fotocopiadora Ricoh IM 2702"></div>
+          <div class="pm-field"><label for="pf-sku">SKU</label><input id="pf-sku" class="pm-input" name="sku" maxlength="40" placeholder="Ej. FOT-002"></div>
           <div class="pm-field"><label for="p-cat">Categoría</label><select id="p-cat" class="pm-input" name="categoria"></select></div>
           <div class="pm-field"><label for="pf-marca">Marca</label><input id="pf-marca" class="pm-input" name="marca" maxlength="60" list="p-marcas" placeholder="Ej. Ricoh"><datalist id="p-marcas"></datalist></div>
         </div>
-        <div class="pm-field"><label for="pf-desc">Descripción</label><textarea id="pf-desc" class="pm-input" name="descripcion" rows="3" maxlength="400"></textarea></div>
+        <div class="pm-field"><label for="pf-desc">Descripción</label><textarea id="pf-desc" class="pm-input" name="descripcion" rows="3" maxlength="1500"></textarea></div>
 
         <h3 class="pm-section">Precios</h3>
         <div class="pm-grid three">
@@ -176,6 +177,25 @@
             </div>
           </div>
         </div>
+        <div class="pm-field">
+          <label for="pf-gal-url" id="pf-gal-label">Fotos adicionales (0/8)</label>
+          <div class="pm-gallery" id="pf-gallery"></div>
+          <div class="pm-gal-add" id="pf-gal-add">
+            <input id="pf-gal-url" class="pm-input" maxlength="400" placeholder="Pega una URL https:// o una ruta img/productos/foto-2.jpg">
+            <button type="button" class="btn btn-sm" id="pf-gal-btn">Agregar</button>
+          </div>
+          <span class="pm-hint">Se muestran en la galería del producto, después de la imagen principal.</span>
+        </div>
+
+        <h3 class="pm-section">Detalles</h3>
+        <div class="pm-field">
+          <label>Especificaciones</label>
+          <datalist id="spec-groups"></datalist>
+          <div class="pm-specs" id="pf-specs"></div>
+          <button type="button" class="btn btn-sm pm-spec-add" id="pf-spec-btn">+ Agregar especificación</button>
+          <span class="pm-hint">Se agrupan por título en la pestaña “Especificaciones”. Las 5 primeras aparecen junto al precio.</span>
+        </div>
+        <div class="pm-field"><label for="pf-garantia">Garantía (opcional)</label><input id="pf-garantia" class="pm-input" name="garantia" maxlength="300" placeholder="Ej. 12 meses con el fabricante por defectos de fábrica."></div>
 
         <h3 class="pm-section">Visibilidad</h3>
         <div class="pm-switches">
@@ -262,7 +282,7 @@
   <script src="js/productos.js"></script>
   <script src="js/categorias.js"></script>
   <script src="js/sheets-config.js?v=sheets-url-3"></script>
-  <script src="js/data.js?v=product-modal-1"></script>
+  <script src="js/data.js?v=product-detail-1"></script>
   <script src="js/whatsapp-widget.js"></script>
   <script src="js/auth.js?v=register-local-first-3"></script>
   <script src="js/admin.js?v=product-modal-1"></script>

@@ -9,7 +9,38 @@ const ADMIN_KEY_PROPERTY = 'GRINSER_ADMIN_KEY';
 const PRODUCT_HEADERS = [
   'id', 'nombre', 'categoria', 'marca', 'precio', 'precio_oferta',
   'stock', 'descripcion', 'imagen', 'activo',
+  // Columnas añadidas para la ficha del producto (las listas se guardan como JSON).
+  'sku', 'imagenes', 'especificaciones', 'garantia',
 ];
+const MAX_EXTRA_IMAGES = 8;
+const MAX_SPECS = 40;
+
+// Lee una lista guardada como JSON en una celda; si la celda está vacía o dañada, devuelve [].
+function parseList_(value) {
+  if (Array.isArray(value)) return value;
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function cleanImages_(list) {
+  return parseList_(list).map((url) => String(url || '').trim())
+    .filter((url) => url && url.length <= 2000 && !/^\s*(javascript|vbscript|data):/i.test(url))
+    .slice(0, MAX_EXTRA_IMAGES);
+}
+
+function cleanSpecs_(list) {
+  return parseList_(list).map((spec) => ({
+    grupo: String(spec && spec.grupo || '').trim().slice(0, 60),
+    nombre: String(spec && spec.nombre || '').trim().slice(0, 80),
+    valor: String(spec && spec.valor || '').trim().slice(0, 300),
+  })).filter((spec) => spec.nombre && spec.valor).slice(0, MAX_SPECS);
+}
 const CATEGORY_HEADERS = ['id', 'nombre', 'icon'];
 const CLIENT_HEADERS = ['id', 'nombre', 'email', 'telefono', 'creado'];
 const EVENT_HEADERS = ['id', 'habilitado', 'modo', 'evento_manual'];
@@ -52,7 +83,7 @@ const DEFAULT_PRODUCTS = [
 function setupGrinserSheets() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   if (!spreadsheet) throw new Error('Vincula este proyecto a una hoja de cálculo antes de ejecutar la configuración.');
-  ensureSheet_(spreadsheet, SHEETS.products, PRODUCT_HEADERS, DEFAULT_PRODUCTS);
+  ensureSheet_(spreadsheet, SHEETS.products, PRODUCT_HEADERS, DEFAULT_PRODUCTS.map((row) => row.concat(['', '[]', '[]', ''])));
   ensureSheet_(spreadsheet, SHEETS.categories, CATEGORY_HEADERS, DEFAULT_CATEGORIES);
   ensureSheet_(spreadsheet, SHEETS.clients, CLIENT_HEADERS, []);
   ensureSheet_(spreadsheet, SHEETS.events, EVENT_HEADERS, DEFAULT_EVENT_ROWS);
@@ -106,6 +137,10 @@ function readCatalog_() {
       descripcion: String(row.descripcion || ''),
       imagen: String(row.imagen || ''),
       activo: row.activo === true || String(row.activo).toLowerCase() === 'true',
+      sku: String(row.sku || ''),
+      imagenes: cleanImages_(row.imagenes),
+      especificaciones: cleanSpecs_(row.especificaciones),
+      garantia: String(row.garantia || ''),
     })).filter((product) => product.id && product.nombre),
     categories: readRows_(spreadsheet, SHEETS.categories, CATEGORY_HEADERS).map((row) => ({
       id: String(row.id || ''),
@@ -319,9 +354,13 @@ function validateCatalog_(catalog) {
     }
     if (productIds.has(id)) throw new Error('Hay identificadores de producto duplicados.');
     productIds.add(id);
+    const sku = String(product.sku || '').trim();
+    const warranty = String(product.garantia || '').trim();
+    if (sku.length > 40 || warranty.length > 300) throw new Error('Hay un producto con SKU o garantía demasiado largos.');
     return {
       id: id, nombre: name, categoria: category, marca: brand, precio: price,
       precio_oferta: offer, stock: stock, descripcion: description, imagen: image, activo: product.activo,
+      sku: sku, imagenes: cleanImages_(product.imagenes), especificaciones: cleanSpecs_(product.especificaciones), garantia: warranty,
     };
   });
   return { categories: categories, products: products };
@@ -385,7 +424,9 @@ function writeCatalog_(catalog) {
     product.id, product.nombre, product.categoria, product.marca, product.precio,
     product.precio_oferta == null ? '' : product.precio_oferta, product.stock,
     product.descripcion, product.imagen, product.activo,
-  ]), [1, 2, 3, 4, 8, 9]);
+    product.sku || '', JSON.stringify(product.imagenes || []),
+    JSON.stringify(product.especificaciones || []), product.garantia || '',
+  ]), [1, 2, 3, 4, 8, 9, 11, 12, 13, 14]);
 }
 
 function replaceSheet_(spreadsheet, name, headers, rows, textColumns) {

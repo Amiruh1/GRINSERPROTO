@@ -97,6 +97,23 @@
     return id;
   }
 
+  // ── Ficha del producto: fotos adicionales y especificaciones ─────────────
+  // En Sheets se guardan como JSON; un producto sin estos datos devuelve listas vacías.
+  const toList = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string' || !value.trim()) return [];
+    try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+  };
+  GR.imagesOf = (product) => toList(product && product.imagenes)
+    .map((url) => String(url || '').trim()).filter(Boolean).slice(0, 8);
+  GR.specsOf = (product) => toList(product && product.especificaciones)
+    .map((spec) => ({
+      grupo: String(spec && spec.grupo || '').trim(),
+      nombre: String(spec && spec.nombre || '').trim().replace(/\s*:+\s*$/, ''),
+      valor: String(spec && spec.valor || '').trim(),
+    }))
+    .filter((spec) => spec.nombre && spec.valor).slice(0, 40);
+
   function normalizeCatalog(payload) {
     if (!payload || payload.ok === false || !Array.isArray(payload.products) || !Array.isArray(payload.categories)) {
       throw new Error('Google Sheets devolvió un catálogo con formato inválido.');
@@ -116,6 +133,10 @@
         descripcion: String(product.descripcion || ''),
         imagen: String(product.imagen || ''),
         activo: product.activo === true || String(product.activo).toLowerCase() === 'true',
+        sku: String(product.sku || ''),
+        imagenes: GR.imagesOf(product),
+        especificaciones: GR.specsOf(product),
+        garantia: String(product.garantia || ''),
       }));
     if (!categories.length) throw new Error('Google Sheets no contiene categorías válidas.');
     return {
@@ -134,6 +155,7 @@
       catalog.products.map((product) => [
         product.id, product.nombre, product.categoria, product.marca, product.precio,
         product.precio_oferta, product.stock, product.descripcion, product.imagen, product.activo,
+        product.sku || '', GR.imagesOf(product), GR.specsOf(product), product.garantia || '',
       ]),
     );
     if (includeEvents) signature.push(
@@ -398,6 +420,8 @@
     download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
     refresh: '<path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+    tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+    sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
     calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
     check: '<path d="m5 12 5 5 9-10"/>',
