@@ -1516,8 +1516,8 @@ textarea.pm-input { padding: 12px 14px; line-height: 1.5; resize: vertical; }
 .ok-info dd.ok-total { color: var(--blue); font-size: 16px; }
 .ok-actions { display: grid; gap: 10px; width: min(360px, 100%); margin-top: 24px; }
 .ok-actions .btn { min-height: 46px; border-radius: 999px; font-weight: 700; gap: 8px; }
-.ok-primary { border: 0; background: linear-gradient(120deg, var(--navy), var(--blue)); color: #fff; box-shadow: 0 8px 18px rgba(15, 44, 76, .22); }
-.ok-primary:hover { filter: brightness(1.12); color: #fff; }
+.ok-actions a.ok-primary, .ok-actions a.ok-primary:visited { border: 0; background-color: #128c7e; background-image: linear-gradient(120deg, #128c7e, #075e54); color: #fff; -webkit-text-fill-color: #fff; box-shadow: 0 8px 18px rgba(7, 94, 84, .24); }
+.ok-actions a.ok-primary:hover { filter: brightness(1.08); color: #fff; -webkit-text-fill-color: #fff; }
 .ok-secondary { border: 1.5px solid #d9dfeb; background: #fff; color: var(--navy); }
 
 /* Modal de dirección */
