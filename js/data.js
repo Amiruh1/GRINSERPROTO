@@ -283,8 +283,15 @@
       };
       const onMessage = (event) => {
         const result = event.data;
-        const fromResponseFrame = event.source === frame.contentWindow ||
-          (event.source && event.source.parent === frame.contentWindow);
+        let source = event.source;
+        let fromResponseFrame = false;
+        for (let depth = 0; source && depth < 8; depth += 1) {
+          if (source === frame.contentWindow) {
+            fromResponseFrame = true;
+            break;
+          }
+          source = source.parent;
+        }
         if (!fromResponseFrame || !result || result.source !== 'grinser-sheets' || result.nonce !== nonce) return;
         if (!result.ok) return finish(new Error(result.message || 'No se pudo guardar en Google Sheets.'));
         finish(null, result);
