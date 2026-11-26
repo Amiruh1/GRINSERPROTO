@@ -11,7 +11,7 @@ const PRODUCT_HEADERS = [
   'stock', 'descripcion', 'imagen', 'activo',
 ];
 const CATEGORY_HEADERS = ['id', 'nombre', 'icon'];
-const CLIENT_HEADERS = ['id', 'nombre', 'email', 'telefono', 'creado'];
+const CLIENT_HEADERS = ['nombre', 'email', 'telefono', 'creado'];
 const EVENT_HEADERS = ['id', 'habilitado', 'modo', 'evento_manual'];
 const DEFAULT_EVENT_MODE = 'automatic';
 const DEFAULT_MANUAL_EVENT = 'navidad';
@@ -198,10 +198,6 @@ function registerClient_(parameters, nonce) {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet && spreadsheet.getSheetByName(SHEETS.clients);
   if (!sheet) throw new Error('Falta la pestaña Clientes. Ejecuta setupGrinserSheets().');
-  const cache = CacheService.getScriptCache();
-  const cacheKey = 'client-registration-' + Utilities.base64EncodeWebSafe(
-    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, email),
-  ).replace(/=+$/, '');
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -209,14 +205,12 @@ function registerClient_(parameters, nonce) {
     const existing = lastRow >= 2
       ? sheet.getRange(2, 1, lastRow - 1, CLIENT_HEADERS.length).getValues()
       : [];
-    const matchingIndex = existing.findIndex((row) => String(row[2]).trim().toLowerCase() === email);
+    const matchingIndex = existing.findIndex((row) => String(row[1]).trim().toLowerCase() === email);
     if (matchingIndex >= 0) return registrationResult_(nonce, true, 'Registro procesado.');
-    if (cache.get(cacheKey)) throw new Error('Espera unos minutos antes de volver a registrar este correo.');
-    const record = [Utilities.getUuid(), name, email, phone, new Date().toISOString()];
+    const record = [name, email, phone, new Date().toISOString()];
     const rowNumber = lastRow + 1;
-    sheet.getRange(rowNumber, 1, 1, CLIENT_HEADERS.length).setNumberFormat('@');
     sheet.getRange(rowNumber, 1, 1, CLIENT_HEADERS.length).setValues([record]);
-    cache.put(cacheKey, '1', 3600);
+    SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
   }
