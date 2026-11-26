@@ -32,6 +32,17 @@ Para cambiar el número de WhatsApp, el teléfono, el correo o la dirección, ed
 
 El proyecto incluye un Apps Script en [`google-apps-script/Code.gs`](./google-apps-script/Code.gs) y las instrucciones de configuración en [`google-apps-script/README.md`](./google-apps-script/README.md). Después de desplegarlo, pega la URL `/exec` en `js/sheets-config.js` y publica el sitio. La hoja será la fuente de productos y categorías; el panel puede sincronizar cambios tras configurar la clave `GRINSER_ADMIN_KEY` en Apps Script. La tienda abierta en la misma sesión recibe cambios inmediatamente; otras pestañas consultan Sheets cada 15 segundos mientras están visibles. Los registros envían nombre, correo y teléfono opcional a una pestaña privada en segundo plano: si Sheets no confirma el envío, la cuenta local se crea igualmente, aparece un aviso y el perfil vuelve a intentar sincronizarse al iniciar sesión. Las contraseñas no se envían a Sheets y el inicio de sesión continúa siendo local a cada navegador.
 
+## Pagos con Culqi
+
+El checkout abre la ventana oficial de Culqi (tarjeta o Yape). Culqi entrega un token y el Apps Script crea el cobro con la llave secreta: recalcula el total con los precios de la hoja, revisa el stock, cobra, descuenta el stock y guarda el pedido en la pestaña **Pedidos**.
+
+1. Llave pública (`pk_test_…` o `pk_live_…`): en `js/culqi-config.js`.
+2. Llave secreta (`sk_test_…` o `sk_live_…`): en Apps Script → **Configuración del proyecto → Propiedades del script** → propiedad `CULQI_SECRET_KEY`. Nunca la pongas en la página ni en el repositorio.
+3. Copia `google-apps-script/Code.gs` en el editor, ejecuta una vez `setupGrinserSheets` (crea la pestaña Pedidos) y publica una **nueva versión** de la implementación. La primera vez Google pedirá permiso para «conectarse a un servicio externo»: es la llamada a Culqi.
+4. Prueba con las tarjetas de prueba de Culqi, por ejemplo Visa `4111 1111 1111 1111`, vencimiento `09/30`, CVV `123`, o Yape con el celular `900 000 001` y cualquier código de 6 dígitos.
+
+Las llaves de prueba y producción no se mezclan: con `sk_test_` solo se cobran tokens de prueba. Para cobrar de verdad, cambia ambas llaves a `pk_live_` y `sk_live_`.
+
 ## Cuentas de prueba
 
 | Rol | Correo | Contraseña | Cómo ingresar |

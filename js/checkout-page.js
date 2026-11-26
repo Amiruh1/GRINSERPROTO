@@ -175,7 +175,7 @@
         ${err ? `<p class="err" role="alert">${GR.esc(err)}</p>` : ''}
         <div class="co-actions">
           <button type="button" class="btn co-back" data-go-step="1">${GR.icon('chevron-left', 16)} Volver</button>
-          <button type="submit" class="btn co-next" ${busy ? 'disabled' : ''}>${busy ? '<span class="spinner" aria-hidden="true"></span> Abriendo Culqi…' : `${GR.icon('lock', 16)} Pagar con Culqi · ${GR.money(total)}`}</button>
+          <button type="submit" class="btn co-next" ${busy ? 'disabled' : ''}>${busy ? `<span class="spinner" aria-hidden="true"></span> ${busy === 'cobrando' ? 'Procesando pago…' : 'Abriendo Culqi…'}` : `${GR.icon('lock', 16)} Pagar con Culqi · ${GR.money(total)}`}</button>
         </div>
       </form>`;
   }
@@ -310,20 +310,37 @@
     culqi.open();
   }
 
-  /** Registra el pedido (mismo formato que usa «Ventas» en el panel) y descuenta el stock. */
-  function createOrder(pago) {
+  /** Datos del pedido que se envían al Apps Script para cobrar (el servidor recalcula precios y stock). */
+  function orderPayload(items) {
+    const addr = getAddrs().find((a) => a.id === f.addr);
+    return {
+      items: items.map((i) => ({ id: i.id, cantidad: i.cantidad })),
+      cliente: { nombre: f.nombre.trim(), dni: f.dni, telefono: f.telefono },
+      direccion: addr ? { direccion_linea1: addr.direccion_linea1, distrito: addr.distrito, provincia: addr.provincia, departamento: addr.departamento, referencia: addr.referencia || '' } : null,
+      comprobante: { tipo: f.tipo_comprobante, ruc: f.tipo_comprobante === 'factura' ? f.ruc : '', razon_social: f.tipo_comprobante === 'factura' ? f.razon_social.trim() : '' },
+      notas: f.notas.trim(),
+    };
+  }
+
+  /**
+   * Registra el pedido (mismo formato que usa «Ventas» en el panel).
+   * charged: respuesta del Apps Script cuando Culqi aprobó el cobro (ya descontó el stock en la hoja).
+   */
+  function createOrder(pago, charged) {
     const items = GR.cartItems();
-    for (const i of items) {
-      const p = GR.getProducts().find((x) => x.id === i.id);
-      if (!p || p.stock < i.cantidad) { err = `${i.nombre} ya no tiene stock suficiente. Revisa tu carrito.`; render(); return; }
+    if (!charged) {
+      for (const i of items) {
+        const p = GR.getProducts().find((x) => x.id === i.id);
+        if (!p || p.stock < i.cantidad) { err = `${i.nombre} ya no tiene stock suficiente. Revisa tu carrito.`; render(); return; }
+      }
     }
     const { subtotal } = GR.cartTotals(items);
     const addr = getAddrs().find((a) => a.id === f.addr);
     const pedido = {
-      id: 'GR-' + Date.now().toString(36).toUpperCase().slice(-6),
+      id: charged?.pedido || 'GR-' + Date.now().toString(36).toUpperCase().slice(-6),
       usuario: user.id, nombre: f.nombre.trim(), email: user.email, fecha: new Date().toISOString(),
-      total: subtotal, estado: 'pendiente',
-      items: items.map((i) => ({ id: i.id, nombre: i.nombre, precio: i.precio, cantidad: i.cantidad })),
+      total: charged ? charged.total : subtotal, estado: charged ? 'pagado' : 'pendiente',
+      items: charged?.items || items.map((i) => ({ id: i.id, nombre: i.nombre, precio: i.precio, cantidad: i.cantidad })),
       cliente: { nombre: f.nombre.trim(), dni: f.dni, telefono: f.telefono },
       direccion: addr ? { ...addr } : null,
       envio: 'por coordinar',
@@ -331,15 +348,37 @@
       notas: f.notas.trim(),
       pago,
     };
-    const products = GR.getProducts().map((p) => { const it = items.find((i) => i.id === p.id); return it ? { ...p, stock: p.stock - it.cantidad } : p; });
-    GR.saveProducts(products);
+    if (charged) {
+      GR.refreshCatalog().catch(() => {}); // el stock ya se descontó en la hoja
+    } else {
+      const products = GR.getProducts().map((p) => { const it = items.find((i) => i.id === p.id); return it ? { ...p, stock: p.stock - it.cantidad } : p; });
+      GR.saveProducts(products);
+    }
     GR.write('pedidos', [...GR.read('pedidos', []), pedido]);
     GR.write(`checkout_${user.id}`, { nombre: f.nombre.trim(), dni: f.dni, telefono: f.telefono });
     GR.clearCart();
     done = pedido;
     step = 3;
     render();
-    GR.toast(`Pedido ${pedido.id} creado.`);
+    GR.toast(charged ? `Pago aprobado. Pedido ${pedido.id} creado.` : `Pedido ${pedido.id} creado.`);
+  }
+
+  /** Con el token de Culqi, el Apps Script crea el cargo; solo si el banco aprueba se confirma el pedido. */
+  async function chargeToken(token) {
+    const items = GR.cartItems();
+    const { subtotal } = GR.cartTotals(items);
+    busy = 'cobrando'; err = ''; render();
+    root.querySelector('.co-next')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    try {
+      const charged = await GR.chargeWithCulqi({ token, email: user.email, total: subtotal, pedido: orderPayload(items) });
+      busy = false;
+      createOrder({ proveedor: 'culqi', metodo: charged.metodo, cargo: charged.cargo, estado: 'pagado' }, charged);
+    } catch (ex) {
+      busy = false;
+      err = ex.message;
+      render();
+      root.querySelector('.co-actions')?.previousElementSibling?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   }
 
   async function confirmar() {
@@ -356,20 +395,18 @@
       createOrder({ proveedor: 'culqi', demo: true, metodo: 'Prueba', estado: 'sin cobro' });
       return;
     }
-    busy = true; render();
+    if (!GR.sheetsConfigured) {
+      err = 'Para cobrar con Culqi falta conectar el Apps Script (js/sheets-config.js).';
+      render();
+      return;
+    }
+    busy = 'abriendo'; render();
     try {
-      await openCulqi(subtotal, (token) => {
-        createOrder({
-          proveedor: 'culqi', token, metodo: token.startsWith('ype_') ? 'Yape' : 'Tarjeta',
-          // El token autoriza el pago; el cobro se completa creando el «cargo» desde un servidor con la llave secreta.
-          estado: 'token recibido',
-        });
-      });
+      await openCulqi(subtotal, chargeToken);
     } catch (ex) {
       err = ex.message;
     } finally {
-      busy = false;
-      if (step !== 3) render();
+      if (busy === 'abriendo') { busy = false; if (step !== 3) render(); }
     }
   }
 

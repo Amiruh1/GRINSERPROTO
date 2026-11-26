@@ -3,7 +3,16 @@ const SHEETS = {
   categories: 'Categorias',
   clients: 'Clientes',
   events: 'Eventos',
+  orders: 'Pedidos',
 };
+// Pagos con Culqi: la LLAVE SECRETA (sk_test_… / sk_live_…) se guarda en
+// Configuración del proyecto → Propiedades del script → CULQI_SECRET_KEY. Nunca en la página web.
+const CULQI_SECRET_PROPERTY = 'CULQI_SECRET_KEY';
+const CULQI_CHARGES_URL = 'https://api.culqi.com/v2/charges';
+const ORDER_HEADERS = [
+  'id', 'fecha', 'estado', 'cliente', 'dni', 'telefono', 'email', 'direccion', 'comprobante',
+  'ruc', 'razon_social', 'items', 'total', 'metodo', 'culqi_cargo', 'notas',
+];
 const ADMIN_KEY_PROPERTY = 'GRINSER_ADMIN_KEY';
 
 const PRODUCT_HEADERS = [
@@ -87,6 +96,7 @@ function setupGrinserSheets() {
   ensureSheet_(spreadsheet, SHEETS.categories, CATEGORY_HEADERS, DEFAULT_CATEGORIES);
   ensureSheet_(spreadsheet, SHEETS.clients, CLIENT_HEADERS, []);
   ensureSheet_(spreadsheet, SHEETS.events, EVENT_HEADERS, DEFAULT_EVENT_ROWS);
+  ensureSheet_(spreadsheet, SHEETS.orders, ORDER_HEADERS, []);
   spreadsheet.setSpreadsheetTimeZone('America/Lima');
   console.log('Pestañas Productos, Categorias, Clientes y Eventos preparadas.');
 }
@@ -188,6 +198,7 @@ function doPost(event) {
   const nonce = /^[A-Za-z0-9_-]{12,100}$/.test(parameters.nonce || '') ? parameters.nonce : '';
   try {
     if (parameters.action === 'register-client') return registerClient_(parameters, nonce);
+    if (parameters.action === 'culqi-charge') return chargeWithCulqi_(parameters, nonce);
     if (parameters.action === 'save-events') {
       verifyAdminKey_(parameters.adminKey);
       const configuration = validateEvents_(JSON.parse(parameters.events || '{}'));
@@ -440,8 +451,124 @@ function replaceSheet_(spreadsheet, name, headers, rows, textColumns) {
   sheet.setFrozenRows(1);
 }
 
-function registrationResult_(nonce, ok, message) {
-  const payload = JSON.stringify({ source: 'grinser-sheets', nonce: nonce, ok: ok, message: message });
+// ── Pagos con Culqi ──────────────────────────────────────────────────────
+// La página manda el token que entrega la ventana de Culqi y el detalle del pedido.
+// El monto se recalcula aquí con los precios y el stock de la hoja: no se confía en el navegador.
+function chargeWithCulqi_(parameters, nonce) {
+  const secretKey = String(PropertiesService.getScriptProperties().getProperty(CULQI_SECRET_PROPERTY) || '').trim();
+  if (!/^sk_(test|live)_/.test(secretKey)) {
+    throw new Error('Pagos no configurados: agrega CULQI_SECRET_KEY en las propiedades del proyecto de Apps Script.');
+  }
+  const token = String(parameters.token || '').trim();
+  if (!/^[a-z]{3}_(test|live)_[A-Za-z0-9]{6,}$/.test(token)) throw new Error('El pago no es válido. Vuelve a intentarlo.');
+  // Una llave de prueba solo cobra tokens de prueba (y lo mismo en producción).
+  if (token.split('_')[1] !== secretKey.split('_')[1]) throw new Error('El token de pago no corresponde al modo de la tienda (prueba / producción).');
+
+  const order = JSON.parse(parameters.pedido || '{}');
+  const email = String(parameters.email || '').trim().toLowerCase();
+  if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Correo no válido.');
+  const client = order.cliente || {};
+  const name = String(client.nombre || '').trim().slice(0, 120);
+  const dni = String(client.dni || '').trim();
+  const phone = String(client.telefono || '').trim();
+  if (name.length < 3 || !/^\d{8}$/.test(dni) || !/^\d{9}$/.test(phone)) throw new Error('Revisa tus datos: nombre, DNI (8 dígitos) y teléfono (9 dígitos).');
+  const receipt = order.comprobante || {};
+  const receiptType = receipt.tipo === 'factura' ? 'factura' : 'boleta';
+  if (receiptType === 'factura' && (!/^\d{11}$/.test(String(receipt.ruc || '')) || String(receipt.razon_social || '').trim().length < 3)) {
+    throw new Error('Para factura indica un RUC de 11 dígitos y la razón social.');
+  }
+  const requested = Array.isArray(order.items) ? order.items : [];
+  if (!requested.length || requested.length > 50) throw new Error('El carrito está vacío.');
+  const address = order.direccion || {};
+  const addressText = [address.direccion_linea1, address.distrito, address.provincia, address.departamento]
+    .map((part) => String(part || '').trim()).filter(Boolean).join(', ').slice(0, 300);
+  if (addressText.length < 5) throw new Error('Falta la dirección de envío.');
+
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error('No hay una hoja vinculada a este proyecto.');
+  ensureSheet_(spreadsheet, SHEETS.orders, ORDER_HEADERS, []);
+  const productsSheet = spreadsheet.getSheetByName(SHEETS.products);
+  if (!productsSheet) throw new Error('Falta la pestaña Productos.');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    // Precio y stock actuales de cada producto pedido.
+    const rows = readRows_(spreadsheet, SHEETS.products, PRODUCT_HEADERS);
+    const stockColumn = PRODUCT_HEADERS.indexOf('stock') + 1;
+    const lines = requested.map((item) => {
+      const id = String(item && item.id || '');
+      const quantity = Number(item && item.cantidad);
+      const index = rows.findIndex((row) => String(row.id) === id);
+      const row = rows[index];
+      const active = row && (row.activo === true || String(row.activo).toLowerCase() === 'true');
+      if (!row || !active) throw new Error('Un producto de tu carrito ya no está disponible.');
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new Error('Cantidad no válida.');
+      const stock = Number(row.stock) || 0;
+      if (stock < quantity) throw new Error(`${row.nombre} ya no tiene stock suficiente (quedan ${stock}).`);
+      const price = Number(row.precio) || 0;
+      const offer = row.precio_oferta === '' || row.precio_oferta == null ? null : Number(row.precio_oferta);
+      const finalPrice = offer && offer > 0 && offer < price ? offer : price;
+      return { id, nombre: String(row.nombre), cantidad: quantity, precio: finalPrice, rowNumber: index + 2, stock };
+    });
+    const total = Math.round(lines.reduce((sum, line) => sum + line.precio * line.cantidad, 0) * 100) / 100;
+    const amount = Math.round(total * 100); // Culqi recibe el monto en céntimos
+    if (amount < 300) throw new Error('El monto mínimo para pagar con Culqi es S/ 3.00.');
+    const expected = Number(parameters.total);
+    if (Number.isFinite(expected) && Math.abs(expected - total) > 0.009) {
+      throw new Error(`Los precios cambiaron: el total actual es S/ ${total.toFixed(2)}. Revisa tu carrito y vuelve a intentarlo.`);
+    }
+
+    const orderId = 'GR-' + Utilities.getUuid().replace(/-/g, '').slice(0, 8).toUpperCase();
+    const [firstName, ...lastNames] = name.split(/\s+/);
+    const response = UrlFetchApp.fetch(CULQI_CHARGES_URL, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + secretKey },
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        amount: amount,
+        currency_code: 'PEN',
+        email: email,
+        source_id: token,
+        description: ('Pedido ' + orderId + ' - Grinser').slice(0, 80),
+        metadata: { pedido: orderId, dni: dni },
+        antifraud_details: {
+          first_name: firstName, last_name: lastNames.join(' ') || firstName,
+          phone_number: phone, address: String(address.direccion_linea1 || '').slice(0, 100),
+          address_city: String(address.distrito || address.provincia || 'Lima').slice(0, 30), country_code: 'PE',
+        },
+      }),
+    });
+    const status = response.getResponseCode();
+    let charge = {};
+    try { charge = JSON.parse(response.getContentText() || '{}'); } catch (error) { charge = {}; }
+    if (status < 200 || status >= 300 || charge.object !== 'charge' || !charge.id) {
+      console.error('Culqi rechazó el cargo', status, response.getContentText());
+      throw new Error(charge.user_message || charge.merchant_message || 'Tu banco no aprobó el pago. Prueba con otra tarjeta o medio de pago.');
+    }
+
+    // Pago aprobado: se descuenta el stock y se guarda el pedido.
+    lines.forEach((line) => productsSheet.getRange(line.rowNumber, stockColumn).setValue(line.stock - line.cantidad));
+    const method = token.indexOf('ype_') === 0 ? 'Yape' : 'Tarjeta';
+    spreadsheet.getSheetByName(SHEETS.orders).appendRow([
+      orderId, new Date().toISOString(), 'pagado', name, dni, phone, email, addressText, receiptType,
+      receiptType === 'factura' ? String(receipt.ruc) : '', receiptType === 'factura' ? String(receipt.razon_social).trim().slice(0, 150) : '',
+      lines.map((line) => `${line.cantidad} x ${line.nombre} (${line.id}) @ ${line.precio.toFixed(2)}`).join(' | '),
+      total, method, charge.id, String(order.notas || '').trim().slice(0, 500),
+    ]);
+    SpreadsheetApp.flush();
+    return registrationResult_(nonce, true, 'Pago aprobado.', {
+      pedido: orderId, cargo: charge.id, total: total, metodo: method,
+      items: lines.map((line) => ({ id: line.id, nombre: line.nombre, cantidad: line.cantidad, precio: line.precio })),
+    });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function registrationResult_(nonce, ok, message, data) {
+  const payload = JSON.stringify({ source: 'grinser-sheets', nonce: nonce, ok: ok, message: message, data: data || null });
   const html = '<!doctype html><meta charset="utf-8"><script>window.top.postMessage('
     + payload + ',"*");</script>';
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

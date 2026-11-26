@@ -237,7 +237,7 @@
     if (catalogChannel) catalogChannel.postMessage({ type: 'catalog-updated', catalog });
   };
 
-  function postToSheets(fields, expectedCatalog) {
+  function postToSheets(fields, expectedCatalog, timeoutMs = 20000) {
     return new Promise((resolve, reject) => {
       if (!sheetsUrl) return reject(new Error('Falta configurar la URL de Google Sheets.'));
       const expectedState = expectedCatalog ? normalizeCatalog(expectedCatalog) : null;
@@ -325,14 +325,27 @@
             : 'Google Sheets no reflejó el catálogo guardado. Verifica la conexión y vuelve a intentarlo.';
           finish(new Error(message));
         }
-        else finish(new Error('No se recibió confirmación de Google Sheets. Inténtalo nuevamente.'));
-      }, 20000);
+        else finish(new Error(fields.action === 'culqi-charge'
+          ? 'No recibimos la confirmación del pago. Antes de volver a intentar, escríbenos por WhatsApp para verificar si se realizó el cobro.'
+          : 'No se recibió confirmación de Google Sheets. Inténtalo nuevamente.'));
+      }, timeoutMs);
       window.addEventListener('message', onMessage);
       document.body.append(frame, form);
       form.submit();
       if (expectedSignature) verificationTimer = window.setTimeout(verifyCatalog, 1500);
     });
   }
+
+  /**
+   * Cobra con Culqi desde Apps Script (la llave secreta solo vive allí).
+   * Devuelve { pedido, cargo, total, metodo, items } si el banco aprobó el pago.
+   */
+  GR.chargeWithCulqi = async ({ token, email, total, pedido }) => {
+    const result = await postToSheets({
+      action: 'culqi-charge', token, email, total: Number(total).toFixed(2), pedido: JSON.stringify(pedido),
+    }, null, 45000);
+    return result.data || {};
+  };
 
   GR.saveClientToSheets = ({ nombre, email, telefono = '' }) => postToSheets({
     action: 'register-client', nombre, email, telefono, website: '',
