@@ -385,7 +385,7 @@
       <div class="pm-spec-row">
         <input class="pm-input" list="spec-groups" placeholder="Grupo (ej. Impresión)" value="${GR.esc(spec.grupo)}" data-spec-i="${i}" data-spec-k="grupo" maxlength="60" aria-label="Grupo de la especificación ${i + 1}">
         <input class="pm-input" placeholder="Característica (ej. Velocidad)" value="${GR.esc(spec.nombre)}" data-spec-i="${i}" data-spec-k="nombre" maxlength="80" aria-label="Característica ${i + 1}">
-        <input class="pm-input" placeholder="Valor (ej. 27 ppm)" value="${GR.esc(spec.valor)}" data-spec-i="${i}" data-spec-k="valor" maxlength="300" aria-label="Valor ${i + 1}">
+        <input class="pm-input" placeholder="" value="${GR.esc(spec.valor)}" data-spec-i="${i}" data-spec-k="valor" maxlength="300" aria-label="Valor ${i + 1}">
         <div class="pm-spec-actions">
           <button type="button" class="btn btn-sm" data-spec-move="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Subir especificación ${i + 1}" title="Subir">↑</button>
           <button type="button" class="btn btn-sm" data-spec-move="${i}" data-d="1" ${i === specsDraft.length - 1 ? 'disabled' : ''} aria-label="Bajar especificación ${i + 1}" title="Bajar">↓</button>
