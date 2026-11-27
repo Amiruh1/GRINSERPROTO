@@ -68,7 +68,7 @@ const DEFAULT_EVENT_ROWS = [
 
 const DEFAULT_CATEGORIES = [
   ['fotocopiadoras', 'Fotocopiadoras', 'copier'],
-  ['toner', 'Tóner y tintas', 'drop'],
+  ['toner', 'Tóner y recargas', 'drop'],
   ['repuestos', 'Repuestos', 'wrench'],
   ['plotter', 'Plotter', 'printer'],
   ['papeleria', 'Papel y accesorios', 'file'],

@@ -278,14 +278,26 @@
   let galleryDraft = [];
   let specsDraft = [];
   const SPEC_GROUPS = ['Información del producto', 'Impresión', 'Copiado', 'Escaneo', 'Conectividad', 'Consumibles', 'Papel', 'Características físicas', 'Compatibilidad'];
-  const PHOTOCOPIER_SPECS = [
-    'Formato estándar',
-    'Color/B&N',
-    'Tecnología',
-    'Velocidad de numeración A4',
-    'Gramaje mínimo de papel',
-    'Gramaje máximo de papel',
-  ];
+  const CATEGORY_DEFAULT_SPECS = {
+    fotocopiadoras: [
+      'Formato estándar',
+      'Color/B&N',
+      'Tecnología',
+      'Velocidad de numeración A4',
+      'Gramaje mínimo de papel',
+      'Gramaje máximo de papel',
+    ],
+    toner: [
+      'Marca',
+      'Código de producto',
+      'Color',
+      'Presentación',
+      'Tipo de producto',
+      'Modelos compatibles',
+      'Rendimiento aproximado',
+      'Estado',
+    ],
+  };
 
   function renderGalleryDraft() {
     $('#pf-gal-label').textContent = `Fotos adicionales (${galleryDraft.length}/8)`;
@@ -861,9 +873,10 @@
     });
     $('#p-form').addEventListener('submit', (e) => { e.preventDefault(); if (!$('#p-save').disabled) saveProduct(); });
     $('#p-cat').addEventListener('change', () => {
-      if (editing || $('#p-cat').value !== 'fotocopiadoras') return;
+      const defaults = CATEGORY_DEFAULT_SPECS[$('#p-cat').value];
+      if (editing || !defaults) return;
       const existing = new Set(specsDraft.map((spec) => spec.nombre.trim().toLocaleLowerCase('es')));
-      const additions = PHOTOCOPIER_SPECS
+      const additions = defaults
         .filter((name) => !existing.has(name.toLocaleLowerCase('es')))
         .map((nombre) => ({ grupo: 'Información del producto', nombre, valor: '' }));
       if (!additions.length) return;
