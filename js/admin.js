@@ -296,7 +296,6 @@
       'Presentación',
       'Tipo de producto',
       'Modelos compatibles',
-      'Rendimiento aproximado',
       'Estado',
     ],
   };
