@@ -2,6 +2,7 @@ const SHEETS = {
   products: 'Productos',
   categories: 'Categorias',
   clients: 'Clientes',
+  users: 'Usuarios',
   events: 'Eventos',
   orders: 'Pedidos',
 };
@@ -52,6 +53,7 @@ function cleanSpecs_(list) {
 }
 const CATEGORY_HEADERS = ['id', 'nombre', 'icon'];
 const CLIENT_HEADERS = ['id', 'nombre', 'email', 'telefono', 'creado'];
+const USER_HEADERS = ['id', 'nombre', 'email', 'telefono', 'password_salt', 'password_hash', 'rol', 'activo', 'creado'];
 const EVENT_HEADERS = ['id', 'habilitado', 'modo', 'evento_manual'];
 const DEFAULT_EVENT_MODE = 'automatic';
 const DEFAULT_MANUAL_EVENT = 'navidad';
@@ -88,10 +90,11 @@ function setupGrinserSheets() {
   ensureSheet_(spreadsheet, SHEETS.products, PRODUCT_HEADERS, DEFAULT_PRODUCTS.map((row) => row.concat(['', '[]', '[]', ''])));
   ensureSheet_(spreadsheet, SHEETS.categories, CATEGORY_HEADERS, DEFAULT_CATEGORIES);
   ensureSheet_(spreadsheet, SHEETS.clients, CLIENT_HEADERS, []);
+  ensureSheet_(spreadsheet, SHEETS.users, USER_HEADERS, []);
   ensureSheet_(spreadsheet, SHEETS.events, EVENT_HEADERS, DEFAULT_EVENT_ROWS);
   ensureSheet_(spreadsheet, SHEETS.orders, ORDER_HEADERS, []);
   spreadsheet.setSpreadsheetTimeZone('America/Lima');
-  console.log('Pestañas Productos, Categorias, Clientes y Eventos preparadas.');
+  console.log('Pestañas Productos, Categorias, Clientes, Usuarios, Eventos y Pedidos preparadas.');
 }
 
 function ensureSheet_(spreadsheet, name, headers, seedRows) {
@@ -191,6 +194,25 @@ function doPost(event) {
   const nonce = /^[A-Za-z0-9_-]{12,100}$/.test(parameters.nonce || '') ? parameters.nonce : '';
   try {
     if (parameters.action === 'register-client') return registerClient_(parameters, nonce);
+    if (parameters.action === 'user-auth-challenge') {
+      return registrationResult_(nonce, true, 'Desafío de autenticación.', { salt: userSalt_(parameters.email) });
+    }
+    if (parameters.action === 'register-user') return registerUser_(parameters, nonce);
+    if (parameters.action === 'login-user') return loginUser_(parameters, nonce);
+    if (parameters.action === 'list-users') {
+      verifyAdminKey_(parameters.adminKey);
+      return registrationResult_(nonce, true, 'Usuarios cargados.', { users: listUsers_() });
+    }
+    if (parameters.action === 'admin-create-user') {
+      verifyAdminKey_(parameters.adminKey);
+      const user = createUserRecord_(parameters, String(parameters.rol || 'cliente'));
+      return registrationResult_(nonce, true, 'Usuario creado.', { user: publicUser_(user) });
+    }
+    if (parameters.action === 'update-user') {
+      verifyAdminKey_(parameters.adminKey);
+      const result = updateUserRecord_(parameters);
+      return registrationResult_(nonce, true, 'Usuario actualizado.', result);
+    }
     if (parameters.action === 'culqi-order') return createCulqiOrder_(parameters, nonce);
     if (parameters.action === 'culqi-charge') return chargeWithCulqi_(parameters, nonce);
     if (parameters.action === 'upload-image') {
@@ -299,6 +321,166 @@ function registerClient_(parameters, nonce) {
     lock.releaseLock();
   }
   return registrationResult_(nonce, true, 'Registro guardado.');
+}
+
+function userSheet_() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet && spreadsheet.getSheetByName(SHEETS.users);
+  if (!sheet) throw new Error('Falta la pestaña Usuarios. Ejecuta setupGrinserSheets() y vuelve a implementar la aplicación.');
+  return sheet;
+}
+
+function createUserRecord_(parameters, role) {
+  const name = String(parameters.nombre || '').trim();
+  const email = String(parameters.email || '').trim().toLowerCase();
+  const phone = String(parameters.telefono || '').trim();
+  const passwordSalt = String(parameters.passwordSalt || '');
+  const passwordHash = String(parameters.passwordHash || '');
+  if (name.length < 3 || name.length > 80) throw new Error('Escribe un nombre válido.');
+  if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Escribe un correo válido.');
+  if (phone.length > 20 || (phone && !/^[0-9+()\s.-]{7,20}$/.test(phone))) throw new Error('Escribe un teléfono válido.');
+  if (!/^[a-f0-9]{32}$/i.test(passwordSalt) || !/^[a-f0-9]{64}$/i.test(passwordHash)) {
+    throw new Error('No se pudieron validar las credenciales de la cuenta.');
+  }
+  if (role !== 'admin' && role !== 'cliente') throw new Error('El rol del usuario no es válido.');
+
+  const sheet = userSheet_();
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const lastRow = sheet.getLastRow();
+    const users = lastRow < 2 ? [] : sheet.getRange(2, 1, lastRow - 1, USER_HEADERS.length).getValues();
+    if (users.some((row) => String(row[2] || '').trim().toLowerCase() === email)) {
+      throw new Error('Ese correo ya está registrado.');
+    }
+    const user = {
+      id: Utilities.getUuid(), nombre: name, email, telefono: phone,
+      password_salt: passwordSalt, password_hash: passwordHash, rol: role, activo: true,
+      creado: new Date().toISOString(),
+    };
+    sheet.appendRow(USER_HEADERS.map((header) => user[header]));
+    return user;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function registerUser_(parameters, nonce) {
+  const user = createUserRecord_(parameters, 'cliente');
+  return registrationResult_(nonce, true, 'Cuenta creada.', { user: publicUser_(user) });
+}
+
+function loginUser_(parameters, nonce) {
+  const email = String(parameters.email || '').trim().toLowerCase();
+  const passwordSalt = String(parameters.passwordSalt || '');
+  const passwordHash = String(parameters.passwordHash || '');
+  const sheet = userSheet_();
+  const lastRow = sheet.getLastRow();
+  const users = lastRow < 2 ? [] : sheet.getRange(2, 1, lastRow - 1, USER_HEADERS.length).getValues();
+  const row = users.find((user) => String(user[2] || '').trim().toLowerCase() === email);
+  if (!row) return registrationResult_(nonce, true, 'Cuenta no encontrada.', { found: false });
+  if (!constantTimeEqual_(String(row[4] || ''), passwordSalt)
+      || !constantTimeEqual_(String(row[5] || ''), passwordHash)) {
+    throw new Error('Correo o contraseña incorrectos.');
+  }
+  const user = userFromRow_(row);
+  if (!user.activo) throw new Error('Tu cuenta está desactivada. Comunícate con Grinser.');
+  return registrationResult_(nonce, true, 'Inicio de sesión correcto.', { found: true, user: publicUser_(user) });
+}
+
+function userSalt_(email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const sheet = userSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    const users = sheet.getRange(2, 1, lastRow - 1, USER_HEADERS.length).getValues();
+    const user = users.find((row) => String(row[2] || '').trim().toLowerCase() === normalizedEmail);
+    if (user && /^[a-f0-9]{32}$/i.test(String(user[4] || ''))) return String(user[4]);
+  }
+  return Utilities.getUuid().replace(/-/g, '');
+}
+
+function userFromRow_(row) {
+  return USER_HEADERS.reduce((user, header, index) => {
+    user[header] = row[index];
+    return user;
+  }, {});
+}
+
+function publicUser_(user) {
+  return {
+    id: String(user.id), nombre: String(user.nombre), email: String(user.email),
+    telefono: String(user.telefono || ''), rol: String(user.rol || 'cliente'),
+    activo: user.activo === true || String(user.activo).toLowerCase() === 'true',
+    creado: String(user.creado || ''),
+  };
+}
+
+function listUsers_() {
+  const sheet = userSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet.getRange(2, 1, lastRow - 1, USER_HEADERS.length).getValues()
+    .map(userFromRow_).map(publicUser_);
+}
+
+function updateUserRecord_(parameters) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    return updateUserRecordLocked_(parameters);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateUserRecordLocked_(parameters) {
+  const id = String(parameters.id || '');
+  const change = JSON.parse(parameters.change || '{}');
+  const sheet = userSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2 || !id) throw new Error('No se encontró el usuario.');
+  const rows = sheet.getRange(2, 1, lastRow - 1, USER_HEADERS.length).getValues();
+  const index = rows.findIndex((row) => String(row[0]) === id);
+  if (index < 0) throw new Error('No se encontró el usuario.');
+  const row = rows[index];
+  if (change.delete === true) {
+    const activeAdmins = rows.filter((item) =>
+      String(item[6]) === 'admin' && (item[7] === true || String(item[7]).toLowerCase() === 'true')).length;
+    if (String(row[6]) === 'admin' && (row[7] === true || String(row[7]).toLowerCase() === 'true') && activeAdmins <= 1) {
+      throw new Error('Debe quedar al menos un administrador activo.');
+    }
+    sheet.deleteRow(index + 2);
+    return { deleted: true };
+  }
+  if (change.rol != null && change.rol !== 'admin' && change.rol !== 'cliente') {
+    throw new Error('El rol del usuario no es válido.');
+  }
+  if (change.activo != null && typeof change.activo !== 'boolean') {
+    throw new Error('El estado del usuario no es válido.');
+  }
+  const nextRole = change.rol == null ? String(row[6]) : change.rol;
+  const nextActive = change.activo == null
+    ? row[7] === true || String(row[7]).toLowerCase() === 'true'
+    : change.activo;
+  const removesActiveAdmin = String(row[6]) === 'admin' && (nextRole !== 'admin' || !nextActive);
+  if (removesActiveAdmin) {
+    const activeAdmins = rows.filter((item) =>
+      String(item[6]) === 'admin' && (item[7] === true || String(item[7]).toLowerCase() === 'true')).length;
+    if (activeAdmins <= 1) throw new Error('Debe quedar al menos un administrador activo.');
+  }
+  if (change.rol != null) sheet.getRange(index + 2, 7).setValue(change.rol);
+  if (change.activo != null) sheet.getRange(index + 2, 8).setValue(change.activo);
+  return { user: publicUser_(userFromRow_(sheet.getRange(index + 2, 1, 1, USER_HEADERS.length).getValues()[0])) };
+}
+
+function constantTimeEqual_(left, right) {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
 }
 
 function writeClientRow_(sheet, columnByHeader, rowNumber, client) {

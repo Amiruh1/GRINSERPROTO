@@ -1,12 +1,13 @@
 'use strict';
 // Grinser · cuentas, roles y ventana de inicio de sesión.
-// Roles: 'admin' (panel de empresa) y 'cliente' (tienda). Las cuentas viven en localStorage:
-// sirve para una demo en GitHub Pages, no para datos reales (no hay servidor que las proteja).
+// Roles: 'admin' (panel de empresa) y 'cliente' (tienda). Con Google Sheets configurado,
+// las credenciales se validan en Apps Script; sin conexión configurada se usa el modo local.
 (function () {
   const GR = window.GR;
   GR.ROLES = { admin: 'Administrador', cliente: 'Cliente' };
   const norm = (e) => String(e || '').trim().toLowerCase();
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const REMOTE_PASSWORD_ITERATIONS = 120000;
 
   async function hash(salt, text) {
     const data = new TextEncoder().encode(`grinser:${salt}:${text}`);
@@ -18,6 +19,27 @@
     return 'x' + h.toString(16);
   }
   const newSalt = () => Math.random().toString(36).slice(2, 12);
+
+  async function passwordVerifier(password, salt) {
+    if (!window.crypto || !crypto.subtle || !crypto.getRandomValues) {
+      throw new Error('Este navegador no admite el inicio de sesión seguro. Actualiza el navegador e inténtalo nuevamente.');
+    }
+    if (!salt) {
+      const bytes = crypto.getRandomValues(new Uint8Array(16));
+      salt = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+    const saltBytes = new Uint8Array(salt.match(/.{2}/g).map((part) => parseInt(part, 16)));
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password)), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({
+      name: 'PBKDF2',
+      hash: 'SHA-256',
+      salt: saltBytes,
+      iterations: REMOTE_PASSWORD_ITERATIONS,
+    }, key, 256);
+    const hashValue = [...new Uint8Array(bits)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    return { passwordSalt: salt, passwordHash: hashValue };
+  }
+  GR.passwordVerifier = passwordVerifier;
 
   GR.getUsers = () => GR.read('usuarios', []);
   GR.saveUsers = (list) => GR.write('usuarios', list);
@@ -42,6 +64,7 @@
   GR.authReady = (async () => {
     if (GR.read('usuarios', null)) return;
     GR.saveUsers([]);
+    if (GR.sheetsConfigured) return;
     await GR.createUser({ nombre: 'Administrador Grinser', email: 'admin@grinser.com', password: 'Admin12345', rol: 'admin' });
     await GR.createUser({ nombre: 'Cliente Demo', email: 'cliente@grinser.com', password: 'Cliente12345', rol: 'cliente' });
   })();
@@ -70,28 +93,81 @@
       .finally(() => syncingClients.delete(user.id));
   }
 
-  // El inicio de sesión es compartido. En el panel de empresa se valida que la cuenta sea administradora.
+  function rememberRemoteUser(user) {
+    const users = GR.getUsers().filter((saved) => saved.email !== user.email);
+    GR.saveUsers([...users, user]);
+    return user;
+  }
+
+  function startSession(user) {
+    GR.write('sesion', user.id);
+    emitSession();
+    syncClientProfile(user);
+    return user;
+  }
+
+  async function loginLocally(email, password, modo) {
+    const user = GR.getUsers().find((item) => item.email === norm(email));
+    if (!user || (await hash(user.salt, password || '')) !== user.pass) throw new Error('Correo o contraseña incorrectos.');
+    if (!user.activo) throw new Error('Tu cuenta está desactivada. Comunícate con Grinser.');
+    if (modo === 'empresa' && user.rol !== 'admin') throw new Error('Esta cuenta no tiene acceso al panel de empresa.');
+    return startSession(user);
+  }
+
+  async function migrateLegacyClient(email, password) {
+    const user = GR.getUsers().find((item) => item.email === email && item.rol === 'cliente');
+    if (!user || (await hash(user.salt, password || '')) !== user.pass) return null;
+    const verifier = await passwordVerifier(password || '');
+    const result = await GR.registerUserToSheets({
+      nombre: user.nombre,
+      email: user.email,
+      telefono: user.telefono || '',
+      ...verifier,
+    });
+    if (!result.data || !result.data.user) throw new Error('No se pudo migrar la cuenta a Google Sheets.');
+    return result.data.user;
+  }
+
   GR.login = async (email, password, modo = 'cliente') => {
     await GR.authReady;
-    const u = GR.getUsers().find((x) => x.email === norm(email));
-    if (!u || (await hash(u.salt, password || '')) !== u.pass) throw new Error('Correo o contraseña incorrectos.');
-    if (!u.activo) throw new Error('Tu cuenta está desactivada. Comunícate con Grinser.');
-    if (modo === 'empresa' && u.rol !== 'admin') throw new Error('Esta cuenta no tiene acceso al panel de empresa.');
-    GR.write('sesion', u.id);
-    emitSession();
-    syncClientProfile(u);
-    return u;
+    if (!GR.sheetsConfigured) return loginLocally(email, password, modo);
+    const normalizedEmail = norm(email);
+    const challenge = await GR.getUserSaltFromSheets(normalizedEmail);
+    if (!challenge.data || !/^[a-f0-9]{32}$/i.test(challenge.data.salt)) {
+      throw new Error('Google Sheets devolvió un desafío de inicio de sesión no válido.');
+    }
+    const verifier = await passwordVerifier(password || '', challenge.data.salt);
+    const result = await GR.loginUserFromSheets({ email: normalizedEmail, ...verifier });
+    let user = result.data && result.data.found ? result.data.user : null;
+    if (!user) {
+      user = await migrateLegacyClient(normalizedEmail, password || '');
+      if (!user && modo === 'empresa') {
+        const legacyAdmin = GR.getUsers().find((item) => item.email === normalizedEmail && item.rol === 'admin');
+        if (legacyAdmin && (await hash(legacyAdmin.salt, password || '')) === legacyAdmin.pass) {
+          if (!legacyAdmin.activo) throw new Error('Tu cuenta está desactivada. Comunícate con Grinser.');
+          return startSession(legacyAdmin);
+        }
+      }
+    }
+    if (!user) throw new Error('Correo o contraseña incorrectos.');
+    if (modo === 'empresa' && user.rol !== 'admin') throw new Error('Esta cuenta no tiene acceso al panel de empresa.');
+    return startSession(rememberRemoteUser(user));
   };
 
   GR.register = async (data) => {
     await GR.authReady;
     const email = norm(data.email);
-    if (GR.getUsers().some((user) => user.email === email)) throw new Error('Ese correo ya está registrado.');
+    if (GR.sheetsConfigured) {
+      if (String(data.password || '').length < 8 || String(data.password || '').length > 64) {
+        throw new Error('La contraseña debe tener entre 8 y 64 caracteres.');
+      }
+      const verifier = await passwordVerifier(String(data.password || ''));
+      const result = await GR.registerUserToSheets({ ...data, email, ...verifier, rol: 'cliente' });
+      if (!result.data || !result.data.user) throw new Error('No se pudo crear la cuenta en Google Sheets.');
+      return startSession(rememberRemoteUser(result.data.user));
+    }
     const u = await GR.createUser({ ...data, rol: 'cliente' });
-    GR.write('sesion', u.id);
-    emitSession();
-    syncClientProfile(u);
-    return u;
+    return startSession(u);
   };
 
   GR.authReady.then(() => syncClientProfile(GR.currentUser())).catch((error) => {

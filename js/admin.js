@@ -4,6 +4,8 @@
   const GR = window.GR;
   const $ = (s) => document.querySelector(s);
   let products = [];
+  let remoteUsers = [];
+  let usersLoaded = false;
   let editing = null; // id del producto que se edita (null = nuevo)
   let stockEditing = null;
   let categoryEditing = null;
@@ -133,8 +135,16 @@
     }
   }
 
+  function ensureSheetsWriteKey(purpose) {
+    if (sheetsWriteKey) return sheetsWriteKey;
+    const key = window.prompt(`Ingresa la clave privada de Google Sheets para ${purpose}:`);
+    if (key == null || !key.trim()) throw new Error('Se canceló la operación.');
+    sheetsWriteKey = key.trim();
+    return sheetsWriteKey;
+  }
+
   function renderStats() {
-    const users = GR.getUsers();
+    const users = GR.sheetsConfigured && usersLoaded ? remoteUsers : GR.getUsers();
     const items = [
       ['box', 'Productos', products.length],
       ['x', 'Agotados', products.filter((p) => p.stock <= 0).length],
@@ -696,10 +706,14 @@
   function renderUsers() {
     const me = GR.currentUser();
     const q = $('#u-q').value.trim().toLowerCase();
-    const list = GR.getUsers().filter((u) => !q || `${u.nombre} ${u.email}`.toLowerCase().includes(q));
+    const users = GR.sheetsConfigured ? remoteUsers : GR.getUsers();
+    const list = users.filter((u) => !q || `${u.nombre} ${u.email}`.toLowerCase().includes(q));
+    $('#u-source-note').textContent = GR.sheetsConfigured
+      ? (usersLoaded ? 'Cuentas compartidas desde Google Sheets. La contraseña y sus hashes no se muestran aquí.' : 'Actualiza la lista para cargar las cuentas de la tienda.')
+      : 'Estas cuentas solo están guardadas en este navegador. Configura Google Sheets para compartirlas entre dispositivos.';
     $('#u-table').innerHTML = `
       <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Creado</th><th class="actions"><span class="sr-only">Acciones</span></th></tr></thead>
-      <tbody>${list.map((u) => {
+      <tbody>${list.length ? list.map((u) => {
         const self = u.id === me?.id;
         return `
         <tr>
@@ -711,15 +725,51 @@
           <td>${new Date(u.creado).toLocaleDateString('es-PE')}</td>
           <td class="actions"><button type="button" class="icon-btn danger" data-udel="${u.id}" ${self ? 'disabled' : ''} aria-label="Eliminar a ${GR.esc(u.nombre)}">${GR.icon('trash', 16)}</button></td>
         </tr>`;
-      }).join('')}</tbody>`;
+      }).join('') : `<tr><td colspan="5" class="muted">${GR.sheetsConfigured && !usersLoaded ? 'Las cuentas aún no se han cargado.' : 'No hay usuarios para mostrar.'}</td></tr>`}</tbody>`;
   }
 
-  function updateUser(id, change) {
-    const users = GR.getUsers();
+  async function loadUsers() {
+    if (!GR.sheetsConfigured) {
+      remoteUsers = GR.getUsers();
+      usersLoaded = true;
+      renderUsers();
+      return;
+    }
+    try {
+      const result = await GR.listUsersFromSheets(ensureSheetsWriteKey('consultar las cuentas'));
+      if (!result.data || !Array.isArray(result.data.users)) throw new Error('Google Sheets devolvió una lista de usuarios no válida.');
+      remoteUsers = result.data.users;
+      usersLoaded = true;
+      renderStats();
+      renderUsers();
+    } catch (error) {
+      sheetsWriteKey = '';
+      GR.toast(`No se pudieron cargar las cuentas: ${error.message}`, 'error');
+    }
+  }
+
+  async function updateUser(id, change) {
+    const users = GR.sheetsConfigured ? remoteUsers : GR.getUsers();
     const cur = users.find((u) => u.id === id);
     if (!cur) return;
     const losesAdmin = cur.rol === 'admin' && cur.activo && (change === 'delete' || change.rol === 'cliente' || change.activo === false);
     if (losesAdmin && !adminsLeft(users, id)) { GR.toast('Debe quedar al menos un administrador activo.', 'error'); renderUsers(); return; }
+    if (GR.sheetsConfigured) {
+      try {
+        const changePayload = change === 'delete' ? { delete: true } : change;
+        const result = await GR.updateUserInSheets(ensureSheetsWriteKey('actualizar las cuentas'), id, changePayload);
+        if (result.data && result.data.deleted) remoteUsers = remoteUsers.filter((user) => user.id !== id);
+        else if (result.data && result.data.user) remoteUsers = remoteUsers.map((user) => user.id === id ? result.data.user : user);
+        else throw new Error('Google Sheets no confirmó la actualización del usuario.');
+        GR.toast(change === 'delete' ? 'Usuario eliminado.' : 'Usuario actualizado.');
+        renderStats(); renderUsers();
+      } catch (error) {
+        sheetsWriteKey = '';
+        GR.toast(`No se pudo actualizar el usuario: ${error.message}`, 'error');
+        await loadUsers();
+      }
+      return;
+    }
     GR.saveUsers(change === 'delete' ? users.filter((u) => u.id !== id) : users.map((u) => (u.id === id ? { ...u, ...change } : u)));
     GR.toast(change === 'delete' ? 'Usuario eliminado.' : 'Usuario actualizado.');
     renderStats(); renderUsers();
@@ -728,7 +778,22 @@
   async function createUser() {
     const f = $('#u-form').elements;
     try {
-      await GR.createUser({ nombre: f.nombre.value, email: f.email.value, password: f.password.value, rol: f.rol.value });
+      const user = { nombre: f.nombre.value, email: f.email.value, password: f.password.value, rol: f.rol.value };
+      if (GR.sheetsConfigured) {
+        if (String(user.password || '').length < 8 || String(user.password || '').length > 64) {
+          throw new Error('La contraseña debe tener entre 8 y 64 caracteres.');
+        }
+        const verifier = await GR.passwordVerifier(user.password);
+        const result = await GR.createUserInSheets(ensureSheetsWriteKey('crear usuarios'), {
+          ...user,
+          ...verifier,
+        });
+        if (!result.data || !result.data.user) throw new Error('Google Sheets no confirmó la creación del usuario.');
+        if (usersLoaded) remoteUsers = [...remoteUsers, result.data.user];
+        else await loadUsers();
+      } else {
+        await GR.createUser(user);
+      }
       $('#u-dialog').close();
       GR.toast('Usuario creado.');
       renderStats(); renderUsers();
@@ -823,6 +888,7 @@
     if (tab === 'ventas') renderSales();
     if (tab === 'categorias') renderCategories();
     if (tab === 'eventos') renderEvents();
+    if (tab === 'usuarios') loadUsers();
     document.body.classList.remove('menu-open');
   }
 
@@ -847,6 +913,7 @@
       saveEventConfiguration(GR.EVENTS, $('#event-mode').value, $('#event-manual').value);
     });
     $('#u-q').addEventListener('input', renderUsers);
+    $('#u-refresh').addEventListener('click', loadUsers);
     $('#s-client').addEventListener('input', renderSales);
     $('#s-product').addEventListener('input', renderSales);
     $('#s-status').addEventListener('change', renderSales);
@@ -963,8 +1030,8 @@
         }
       }
       if (t.dataset.del) deleteProduct(t.dataset.del);
-      if (t.dataset.toggle) { const u = GR.getUsers().find((x) => x.id === t.dataset.toggle); if (u) updateUser(u.id, { activo: !u.activo }); }
-      if (t.dataset.udel) { const u = GR.getUsers().find((x) => x.id === t.dataset.udel); if (u && confirm(`¿Eliminar la cuenta de ${u.nombre}?`)) updateUser(u.id, 'delete'); }
+      if (t.dataset.toggle) { const u = (GR.sheetsConfigured ? remoteUsers : GR.getUsers()).find((x) => x.id === t.dataset.toggle); if (u) updateUser(u.id, { activo: !u.activo }); }
+      if (t.dataset.udel) { const u = (GR.sheetsConfigured ? remoteUsers : GR.getUsers()).find((x) => x.id === t.dataset.udel); if (u && confirm(`¿Eliminar la cuenta de ${u.nombre}?`)) updateUser(u.id, 'delete'); }
       if (t.hasAttribute('data-dlg-close')) t.closest('dialog').close();
       if (t.hasAttribute('data-menu')) document.body.classList.toggle('menu-open');
       if (t.hasAttribute('data-menu-close')) document.body.classList.remove('menu-open');

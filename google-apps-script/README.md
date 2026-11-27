@@ -1,12 +1,12 @@
 # Configuración de Google Sheets
 
-Este Apps Script publica productos y categorías para lectura pública y recibe perfiles de clientes. Los registros de clientes no se devuelven a la tienda y no se guardan contraseñas.
+Este Apps Script publica productos y categorías, recibe perfiles de clientes y centraliza las cuentas de la tienda. Las credenciales se guardan únicamente en la pestaña privada **Usuarios** como un verificador PBKDF2-SHA-256 con salt; nunca se guarda la contraseña en texto plano ni se devuelven hashes al navegador.
 
 ## Preparar la hoja
 
 1. Crea una hoja de cálculo nueva en Google Sheets.
 2. Abre **Extensiones → Apps Script**, reemplaza el contenido de `Code.gs` por el archivo de este directorio y guarda. Si el proyecto ya está desplegado, usa la versión nueva de este archivo.
-3. En el editor, ejecuta `setupGrinserSheets` y acepta los permisos. Se crearán las pestañas **Productos**, **Categorias**, **Clientes** y **Eventos** con sus encabezados y datos iniciales.
+3. En el editor, ejecuta `setupGrinserSheets` y acepta los permisos. Se crearán las pestañas **Productos**, **Categorias**, **Clientes**, **Usuarios**, **Eventos** y **Pedidos** con sus encabezados y datos iniciales. La pestaña **Usuarios** debe permanecer privada.
 4. Revisa los datos iniciales. Para imágenes usa URL HTTPS; para `activo` usa `TRUE` o `FALSE`. Mantén los nombres y el orden de las columnas.
 5. Ve a **Implementar → Nueva implementación → Aplicación web**. Elige ejecutar como tu cuenta y permitir acceso a **Cualquier persona**. Copia la URL terminada en `/exec`.
 6. Pega esa URL en `window.GRINSER_SHEETS_URL` dentro de `js/sheets-config.js`.
@@ -16,10 +16,19 @@ Este Apps Script publica productos y categorías para lectura pública y recibe 
 
 1. En Apps Script, abre **Configuración del proyecto** y agrega una propiedad de secuencia de comandos llamada `GRINSER_ADMIN_KEY`. Pon como valor una clave larga y privada; no la escribas en `Code.gs` ni en `js/sheets-config.js`.
 2. Copia el `Code.gs` actualizado de este directorio al proyecto de Apps Script y guarda.
-3. En **Implementar → Gestionar implementaciones**, edita la implementación web, selecciona **Nueva versión** y pulsa **Implementar**. Guardar `Code.gs` por sí solo no actualiza la URL `/exec`; es necesario publicar la nueva versión para que el registro de clientes confirme la sincronización.
+3. En **Implementar → Gestionar implementaciones**, edita la implementación web, selecciona **Nueva versión** y pulsa **Implementar**. Guardar `Code.gs` por sí solo no actualiza la URL `/exec`; es necesario publicar la nueva versión para activar registro e inicio de sesión centralizados.
 4. Recarga el panel. Al guardar por primera vez un producto, stock, categoría o configuración de eventos, aparecerá un diálogo para ingresar esa clave. Se conserva solo en memoria hasta cerrar o recargar el panel.
 
 El panel sincroniza productos al crear, editar, eliminar o registrar movimientos de stock, sincroniza categorías al crear, editar o eliminar, y guarda la configuración de **Eventos** en la pestaña correspondiente. Si la clave o la conexión fallan, el cambio no se confirma en el panel. Las modificaciones manuales en Sheets se reflejan en la tienda y el panel en el siguiente sondeo, como máximo en 15 segundos mientras estén visibles.
+
+## Cuentas de tienda
+
+- Los registros nuevos se guardan en **Usuarios** y pueden iniciar sesión desde distintos dispositivos. Todos los registros públicos reciben el rol **cliente**; no obtienen acceso al panel de empresa.
+- En **Usuarios y roles**, el administrador debe ingresar `GRINSER_ADMIN_KEY` para consultar o cambiar roles/estados, crear cuentas y eliminar usuarios. Esta clave no se guarda en el navegador después de cerrar o recargar el panel.
+- El navegador deriva el verificador con PBKDF2-SHA-256 y 120 000 iteraciones. Apps Script guarda el salt y el verificador en la hoja privada, sin exponerlos en las respuestas.
+- Las cuentas locales antiguas de clientes pueden migrarse al iniciar sesión desde el navegador que conserva la cuenta y su contraseña. No se puede recuperar una contraseña olvidada ni migrar credenciales locales desde otro dispositivo.
+- Si ya había una pestaña **Usuarios** creada manualmente, verifica que sus columnas correspondan a `id`, `nombre`, `email`, `telefono`, `password_salt`, `password_hash`, `rol`, `activo` y `creado`. No compartas la hoja ni concedas acceso a esta pestaña.
+- La autenticación es un prototipo basado en Apps Script y una clave administrativa compartida; usa HTTPS, protege la hoja y la clave, y no reutilices contraseñas sensibles.
 
 En el editor de productos también puedes elegir imágenes desde el dispositivo. Se suben a Google Drive con acceso de lectura mediante enlace y se guarda su URL en el catálogo. Se admiten JPG, PNG, WebP y GIF de hasta 5 MB cada uno; esta función requiere desplegar la versión actualizada de `Code.gs` y autorizar el acceso a Drive con la cuenta propietaria del script. Cualquier persona con el enlace podrá ver esas imágenes.
 
@@ -47,8 +56,8 @@ Si la tienda muestra un error `401`, revisa en **Gestionar implementaciones** qu
 ## Qué guarda y qué no
 
 - **Productos**, **Categorias** y el estado habilitado de **Eventos**: son datos públicos porque afectan lo que aparece en la tienda.
-- **Clientes**: nombre, correo, teléfono opcional y fecha de registro, en las columnas `id`, `nombre`, `email`, `telefono` y `creado`. El endpoint también reconoce hojas existentes sin la columna `id`. La hoja permanece privada; el endpoint público solo permite registrar y no expone la lista. Reintentar el registro del mismo correo es seguro: no duplica filas y no se bloquea por un período de espera.
-- Las contraseñas nunca se envían a Sheets. El inicio de sesión actual del sitio sigue siendo local a cada navegador; esto centraliza el perfil del cliente, pero no crea autenticación compartida entre dispositivos.
+- **Clientes**: nombre, correo, teléfono opcional y fecha de registro, en las columnas `id`, `nombre`, `email`, `telefono` y `creado`. La pestaña permanece privada; el endpoint solo permite registrar perfiles y no expone la lista.
+- **Usuarios**: credenciales con salt y verificador, rol, estado y datos básicos de cuenta. La pestaña permanece privada; el endpoint público permite crear cuentas cliente e iniciar sesión, pero solo la clave administrativa autoriza consultar o modificar la lista.
 - El stock actualizado desde el panel se refleja en Productos; el historial de movimientos y los pedidos siguen guardándose localmente.
 
-La URL de la aplicación web es pública y cualquiera puede intentar enviar registros. El script valida los campos y evita duplicar correos. La clave de administración no está en los archivos del sitio, pero se transmite desde el navegador al guardar; no la compartas. Es una protección básica para este prototipo, no sustituye autenticación segura con backend. No publiques ni compartas la hoja de cálculo de Clientes.
+La URL de la aplicación web es pública y cualquiera puede intentar registrar o iniciar sesión. El script valida los campos y evita duplicar correos. La clave de administración no está en los archivos del sitio, pero se transmite desde el navegador para operaciones protegidas; no la compartas. Es una protección básica para este prototipo, no sustituye autenticación robusta con backend. No publiques ni compartas la hoja de cálculo.

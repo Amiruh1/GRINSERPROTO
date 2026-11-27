@@ -359,6 +359,35 @@
     action: 'register-client', nombre, email, telefono, website: '',
   });
 
+  GR.getUserSaltFromSheets = (email) => postToSheets({
+    action: 'user-auth-challenge', email,
+  });
+
+  GR.registerUserToSheets = ({ nombre, email, telefono = '', passwordSalt, passwordHash }) => postToSheets({
+    action: 'register-user', nombre, email, telefono, passwordSalt, passwordHash,
+  });
+
+  GR.loginUserFromSheets = ({ email, passwordSalt, passwordHash }) => postToSheets({
+    action: 'login-user', email, passwordSalt, passwordHash,
+  });
+
+  GR.listUsersFromSheets = (adminKey) => postToSheets({ action: 'list-users', adminKey });
+
+  GR.createUserInSheets = (adminKey, user) => postToSheets({
+    action: 'admin-create-user',
+    adminKey,
+    nombre: user.nombre,
+    email: user.email,
+    telefono: user.telefono || '',
+    rol: user.rol,
+    passwordSalt: user.passwordSalt,
+    passwordHash: user.passwordHash,
+  });
+
+  GR.updateUserInSheets = (adminKey, id, change) => postToSheets({
+    action: 'update-user', adminKey, id, change: JSON.stringify(change),
+  });
+
   GR.saveCatalogToSheets = async (adminKey, catalog) => {
     await postToSheets({ action: 'save-catalog', adminKey, catalog: JSON.stringify(catalog) }, catalog);
     sheetProducts = catalog.products.map((product) => ({ ...product }));
