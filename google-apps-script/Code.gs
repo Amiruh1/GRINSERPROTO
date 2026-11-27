@@ -75,18 +75,11 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const DEFAULT_PRODUCTS = [
-  ['p-001', 'Impresora multifuncional EcoTank L3250', 'impresoras', 'Epson', 899, 829, 12, 'Imprime, copia y escanea. Sistema de tinta continua y Wi-Fi.', '', true],
-  ['p-002', 'Impresora láser LaserJet M111w', 'impresoras', 'HP', 649, '', 8, 'Láser monocromática compacta, hasta 20 ppm, conexión Wi-Fi.', '', true],
-  ['p-003', 'Impresora multifuncional DCP-T720DW', 'impresoras', 'Brother', 1199, '', 5, 'Tanque de tinta, dúplex automático y alimentador de documentos.', '', true],
-  ['p-004', 'Fotocopiadora multifuncional IM 2702', 'fotocopiadoras', 'Ricoh', 4850, 4590, 3, 'Monocromática A3, 27 ppm, red y escáner a color.', '', true],
   ['p-005', 'Fotocopiadora bizhub C250i', 'fotocopiadoras', 'Konica Minolta', 12900, '', 2, 'Color A3, 25 ppm, panel táctil y seguridad empresarial.', '', true],
-  ['p-006', 'Fotocopiadora TASKalfa 2554ci', 'fotocopiadoras', 'Kyocera', 10450, '', 0, 'Color A3, 25 ppm, bajo costo por página.', '', true],
   ['p-007', 'Botella de tinta 544 negra', 'toner', 'Epson', 45, 39, 60, 'Tinta original de 65 ml, rinde hasta 4 500 páginas.', '', true],
-  ['p-008', 'Tóner 105A negro', 'toner', 'HP', 229, '', 25, 'Tóner original, rendimiento de 1 000 páginas.', '', true],
-  ['p-009', 'Tóner TK-1175', 'toner', 'Kyocera', 189, '', 18, 'Compatible con ECOSYS M2040dn / M2540dn / M2640idw.', '', true],
   ['p-010', 'Unidad de imagen (drum) DR-2340', 'repuestos', 'Brother', 349, 315, 7, 'Tambor original, hasta 12 000 páginas.', '', true],
   ['p-011', 'Kit de fusor para MP 2554', 'repuestos', 'Ricoh', 780, '', 4, 'Repuesto original. Incluye instalación con nuestro servicio técnico.', '', true],
-  ['p-012', 'Papel bond A4 75 g (paquete x 500)', 'papeleria', 'Chamex', 21.9, 19.5, 150, 'Blancura alta, ideal para impresión láser y fotocopiado.', '', true],
+  ['p-012', 'Papel bond A4 75 g (paquete x 500)', 'papeleria', 'Surco', 21.9, 19.5, 150, 'Blancura alta, ideal para impresión láser y fotocopiado.', '', true],
 ];
 
 function setupGrinserSheets() {
@@ -200,6 +193,11 @@ function doPost(event) {
     if (parameters.action === 'register-client') return registerClient_(parameters, nonce);
     if (parameters.action === 'culqi-order') return createCulqiOrder_(parameters, nonce);
     if (parameters.action === 'culqi-charge') return chargeWithCulqi_(parameters, nonce);
+    if (parameters.action === 'upload-image') {
+      verifyAdminKey_(parameters.adminKey);
+      const image = uploadProductImage_(parameters);
+      return registrationResult_(nonce, true, 'Imagen subida.', image);
+    }
     if (parameters.action === 'save-events') {
       verifyAdminKey_(parameters.adminKey);
       const configuration = validateEvents_(JSON.parse(parameters.events || '{}'));
@@ -321,6 +319,27 @@ function verifyAdminKey_(providedKey) {
     mismatch |= expectedKey.charCodeAt(index) ^ provided.charCodeAt(index);
   }
   if (mismatch !== 0) throw new Error('Clave de administración incorrecta.');
+}
+
+function uploadProductImage_(parameters) {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const mimeType = String(parameters.mimeType || '').toLowerCase();
+  const base64 = String(parameters.base64 || '');
+  if (allowedTypes.indexOf(mimeType) < 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64) ||
+      base64.length > 6990508) {
+    throw new Error('El archivo de imagen no es válido o supera los 5 MB.');
+  }
+  const bytes = Utilities.base64Decode(base64);
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) {
+    throw new Error('El archivo de imagen no es válido o supera los 5 MB.');
+  }
+  const filename = String(parameters.filename || 'imagen')
+    .replace(/[\\/:*?"<>|]/g, '_').trim().slice(0, 100) || 'imagen';
+  const file = DriveApp.createFile(Utilities.newBlob(bytes, mimeType, filename));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return {
+    url: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
+  };
 }
 
 function validateCatalog_(catalog) {

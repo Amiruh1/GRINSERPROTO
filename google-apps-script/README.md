@@ -21,6 +21,8 @@ Este Apps Script publica productos y categorías para lectura pública y recibe 
 
 El panel sincroniza productos al crear, editar, eliminar o registrar movimientos de stock, sincroniza categorías al crear, editar o eliminar, y guarda la configuración de **Eventos** en la pestaña correspondiente. Si la clave o la conexión fallan, el cambio no se confirma en el panel. Las modificaciones manuales en Sheets se reflejan en la tienda y el panel en el siguiente sondeo, como máximo en 15 segundos mientras estén visibles.
 
+En el editor de productos también puedes elegir imágenes desde el dispositivo. Se suben a Google Drive con acceso de lectura mediante enlace y se guarda su URL en el catálogo. Se admiten JPG, PNG, WebP y GIF de hasta 5 MB cada uno; esta función requiere desplegar la versión actualizada de `Code.gs` y autorizar el acceso a Drive con la cuenta propietaria del script. Cualquier persona con el enlace podrá ver esas imágenes.
+
 ## Eventos de temporada
 
 En **Panel de empresa → Eventos**, habilita las temporadas que quieras ofrecer y elige el modo:

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261126-8">
+  <link rel="stylesheet" href="css/styles.css?v=20261127-1">
 </head>
 <body class="admin-body">
   <div id="guard" class="guard"><p class="muted">Cargando…</p></div>
@@ -173,6 +173,8 @@
             <span class="pm-upload-preview" id="pf-preview"><i data-icon="image" data-size="26"></i></span>
             <div>
               <input id="pf-imagen" class="pm-input" name="imagen" maxlength="400" placeholder="Pega una URL https:// o una ruta como img/productos/foto.jpg">
+              <button type="button" class="btn btn-sm pm-file-btn" id="pf-image-file-btn">Elegir archivo</button>
+              <input id="pf-image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
               <span class="pm-hint">Se muestra en la tarjeta del producto. Si la dejas vacía, se usa el ícono de la categoría.</span>
             </div>
           </div>
@@ -183,6 +185,11 @@
           <div class="pm-gal-add" id="pf-gal-add">
             <input id="pf-gal-url" class="pm-input" maxlength="400" placeholder="Pega una URL https:// o una ruta img/productos/foto-2.jpg">
             <button type="button" class="btn btn-sm" id="pf-gal-btn">Agregar</button>
+          </div>
+          <div class="pm-gal-file">
+            <button type="button" class="btn btn-sm" id="pf-gal-file-btn">Subir archivos</button>
+            <input id="pf-gal-files" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+            <span class="pm-hint">JPG, PNG, WebP o GIF; máximo 5 MB por imagen.</span>
           </div>
           <span class="pm-hint">Se muestran en la galería del producto, después de la imagen principal.</span>
         </div>
@@ -282,9 +289,9 @@
   <script src="js/productos.js"></script>
   <script src="js/categorias.js"></script>
   <script src="js/sheets-config.js?v=sheets-url-3"></script>
-  <script src="js/data.js?v=culqi-order-1"></script>
+  <script src="js/data.js?v=product-image-upload-1"></script>
   <script src="js/whatsapp-widget.js"></script>
   <script src="js/auth.js?v=register-local-first-3"></script>
-  <script src="js/admin.js?v=product-modal-1"></script>
+  <script src="js/admin.js?v=product-modal-2"></script>
 </body>
 </html>

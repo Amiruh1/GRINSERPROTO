@@ -372,6 +372,10 @@
     });
   };
 
+  GR.uploadImageToSheets = (adminKey, { filename, mimeType, base64 }) => postToSheets({
+    action: 'upload-image', adminKey, filename, mimeType, base64,
+  }, null, 45000);
+
   GR.saveEventsToSheets = async (adminKey, configuration) => {
     const snapshot = normalizeCatalog({
       products: GR.getProducts(),

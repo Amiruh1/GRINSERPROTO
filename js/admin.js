@@ -7,6 +7,7 @@
   let editing = null; // id del producto que se edita (null = nuevo)
   let stockEditing = null;
   let categoryEditing = null;
+  let imageUploading = false;
   let salesPeriod = 'todo';
   let sheetsWriteKey = '';
   let catalogSyncing = false;
@@ -246,10 +247,13 @@
     $('#p-dlg-sub').textContent = id ? p.nombre : 'Completa los datos; podrás editarlos cuando quieras.';
     $('#p-save span').textContent = id ? 'Guardar cambios' : 'Crear producto';
     $('#p-err').hidden = true;
+    $('#p-err').textContent = '';
     for (const k of ['nombre', 'sku', 'marca', 'precio', 'stock', 'descripcion', 'imagen', 'garantia']) f.elements[k].value = p[k] ?? '';
     galleryDraft = GR.imagesOf(p);
     specsDraft = GR.specsOf(p).map((spec) => ({ ...spec }));
     $('#pf-gal-url').value = '';
+    $('#pf-image-file').value = '';
+    $('#pf-gal-files').value = '';
     renderGalleryDraft();
     renderSpecsDraft();
     f.elements.precio_oferta.value = p.precio_oferta ?? '';
@@ -287,6 +291,7 @@
       </div>`).join('');
     $('#pf-gallery').hidden = !galleryDraft.length;
     $('#pf-gal-add').hidden = galleryDraft.length >= 8;
+    $('#pf-gal-file-btn').hidden = galleryDraft.length >= 8;
   }
 
   function addGalleryUrl() {
@@ -297,6 +302,58 @@
     galleryDraft = [...galleryDraft, url].slice(0, 8);
     $('#pf-gal-url').value = '';
     renderGalleryDraft();
+  }
+
+  async function uploadProductImage(file) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) throw new Error('Elige una imagen JPG, PNG, WebP o GIF.');
+    if (file.size > 5 * 1024 * 1024) throw new Error('Cada imagen debe pesar 5 MB o menos.');
+    if (!GR.sheetsConfigured || !GR.sheetsConnected) {
+      throw new Error('Conecta Google Sheets antes de subir imágenes.');
+    }
+    if (!sheetsWriteKey) {
+      const key = window.prompt('Ingresa la clave privada de Google Sheets para subir la imagen:');
+      if (key == null || !key.trim()) throw new Error('Se canceló la subida de la imagen.');
+      sheetsWriteKey = key.trim();
+    }
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = () => reject(new Error('No se pudo leer el archivo de imagen.'));
+      reader.readAsDataURL(file);
+    });
+    try {
+      const result = await GR.uploadImageToSheets(sheetsWriteKey, {
+        filename: file.name,
+        mimeType: file.type,
+        base64,
+      });
+      if (!result.data || !result.data.url) throw new Error('Google Drive no devolvió la URL de la imagen.');
+      return result.data.url;
+    } catch (error) {
+      sheetsWriteKey = '';
+      throw error;
+    }
+  }
+
+  async function withImageUpload(task) {
+    if (imageUploading) return;
+    imageUploading = true;
+    ['#pf-image-file-btn', '#pf-gal-file-btn', '#pf-gal-btn'].forEach((selector) => { $(selector).disabled = true; });
+    $('#p-dialog .pm-close').disabled = true;
+    document.querySelectorAll('#p-dialog [data-dlg-close]').forEach((button) => { button.disabled = true; });
+    $('#p-save').disabled = true;
+    try {
+      await task();
+    } catch (error) {
+      GR.toast(`No se pudo subir la imagen: ${error.message}`, 'error');
+    } finally {
+      imageUploading = false;
+      ['#pf-image-file-btn', '#pf-gal-file-btn', '#pf-gal-btn'].forEach((selector) => { $(selector).disabled = false; });
+      $('#p-dialog .pm-close').disabled = false;
+      document.querySelectorAll('#p-dialog [data-dlg-close]').forEach((button) => { button.disabled = false; });
+      $('#p-save').disabled = false;
+    }
   }
 
   function renderSpecsDraft() {
@@ -341,6 +398,7 @@
   }
 
   async function saveProduct() {
+    if (imageUploading) return;
     const f = $('#p-form').elements;
     const err = (m, el) => { setProductSaving(false); $('#p-err').textContent = m; $('#p-err').hidden = false; el?.focus(); };
     const nombre = f.nombre.value.trim();
@@ -792,9 +850,37 @@
       GR.resetProducts(); products = GR.getProducts(); renderStats(); renderProducts(); GR.toast('Catálogo restablecido.');
     });
     $('#p-form').addEventListener('submit', (e) => { e.preventDefault(); if (!$('#p-save').disabled) saveProduct(); });
-    // Clic en el fondo oscuro: cierra la ventana (como en Novatech).
     $('#pf-gal-btn').addEventListener('click', addGalleryUrl);
     $('#pf-gal-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addGalleryUrl(); } });
+    $('#pf-image-file-btn').addEventListener('click', () => $('#pf-image-file').click());
+    $('#pf-image-file').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      withImageUpload(async () => {
+        const url = await uploadProductImage(file);
+        $('#p-form').elements.imagen.value = url;
+        updateProductPreview();
+        GR.toast('Imagen principal subida.');
+      });
+      e.target.value = '';
+    });
+    $('#pf-gal-file-btn').addEventListener('click', () => $('#pf-gal-files').click());
+    $('#pf-gal-files').addEventListener('change', (e) => {
+      const files = [...e.target.files];
+      e.target.value = '';
+      if (!files.length) return;
+      withImageUpload(async () => {
+        const available = 8 - galleryDraft.length;
+        if (files.length > available) GR.toast(`Solo puedes agregar ${available} imagen(es) más a la galería.`, 'error');
+        for (const file of files.slice(0, available)) {
+          const url = await uploadProductImage(file);
+          if (!galleryDraft.includes(url)) {
+            galleryDraft = [...galleryDraft, url];
+            renderGalleryDraft();
+          }
+        }
+      });
+    });
     $('#pf-spec-btn').addEventListener('click', () => {
       specsDraft = [...specsDraft, { grupo: specsDraft.at(-1)?.grupo || 'Información del producto', nombre: '', valor: '' }];
       renderSpecsDraft();
@@ -812,7 +898,7 @@
       if (b.dataset.specMove) { specsDraft = moveItem(specsDraft, Number(b.dataset.specMove), Number(b.dataset.d)); renderSpecsDraft(); }
       if (b.dataset.specDel) { specsDraft = specsDraft.filter((_, k) => k !== Number(b.dataset.specDel)); renderSpecsDraft(); }
     });
-    $('#p-dialog').addEventListener('mousedown', (e) => { if (e.target === e.currentTarget) $('#p-dialog').close(); });
+    $('#p-dialog').addEventListener('cancel', (e) => { if (imageUploading) e.preventDefault(); });
     $('#p-form').addEventListener('input', (e) => { if (['precio', 'precio_oferta', 'imagen'].includes(e.target.name)) updateProductPreview(); });
     $('#u-form').addEventListener('submit', (e) => { e.preventDefault(); createUser(); });
     $('#c-form').addEventListener('submit', (e) => { e.preventDefault(); saveCategory(); });
