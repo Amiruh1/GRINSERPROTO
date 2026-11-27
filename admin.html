@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261127-1">
+  <link rel="stylesheet" href="css/styles.css?v=20261127-2">
 </head>
 <body class="admin-body">
   <div id="guard" class="guard"><p class="muted">Cargando…</p></div>
@@ -147,7 +147,7 @@
         <div class="pm-grid">
           <div class="pm-field"><label for="pf-nombre">Nombre</label><input id="pf-nombre" class="pm-input" name="nombre" required maxlength="120" placeholder="Ej. Fotocopiadora Ricoh IM 2702"></div>
           <div class="pm-field"><label for="pf-sku">SKU</label><input id="pf-sku" class="pm-input" name="sku" maxlength="40" placeholder="Ej. FOT-002"></div>
-          <div class="pm-field"><label for="p-cat">Categoría</label><select id="p-cat" class="pm-input" name="categoria"></select></div>
+          <div class="pm-field"><label for="p-cat">Categoría</label><select id="p-cat" class="pm-input" name="categoria" required></select></div>
           <div class="pm-field"><label for="pf-marca">Marca</label><input id="pf-marca" class="pm-input" name="marca" maxlength="60" list="p-marcas" placeholder="Ej. Ricoh"><datalist id="p-marcas"></datalist></div>
         </div>
         <div class="pm-field"><label for="pf-desc">Descripción</label><textarea id="pf-desc" class="pm-input" name="descripcion" rows="3" maxlength="1500"></textarea></div>
@@ -292,6 +292,6 @@
   <script src="js/data.js?v=product-image-upload-1"></script>
   <script src="js/whatsapp-widget.js"></script>
   <script src="js/auth.js?v=register-local-first-3"></script>
-  <script src="js/admin.js?v=product-modal-2"></script>
+  <script src="js/admin.js?v=product-modal-3"></script>
 </body>
 </html>

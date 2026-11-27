@@ -58,7 +58,8 @@
 
   // Especificaciones que sirven como filtro: las que tienen al menos 2 productos en esta sección.
   function specFacets() {
-    const scope = visibleProducts().filter((product) => state.cat === 'todas' || product.categoria === state.cat);
+    if (state.cat === 'todas') return [];
+    const scope = visibleProducts().filter((product) => product.categoria === state.cat);
     const byName = new Map();
     scope.forEach((product) => {
       const seen = new Set();

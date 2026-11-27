@@ -109,7 +109,8 @@
     [...new Set(products.map((product) => product.categoria))].forEach((id) => {
       if (id && !knownIds.has(id)) categories.push(GR.cat(id));
     });
-    $('#p-cat').innerHTML = categories.map((category) => `<option value="${GR.esc(category.id)}">${GR.esc(category.nombre)}</option>`).join('');
+    $('#p-cat').innerHTML = '<option value="" disabled selected>Selecciona una categoría</option>'
+      + categories.map((category) => `<option value="${GR.esc(category.id)}">${GR.esc(category.nombre)}</option>`).join('');
   }
 
   async function syncCatalog(nextProducts, nextCategories) {
@@ -241,7 +242,7 @@
   // Ventana «Editar producto» (mismo diseño que el panel de Novatech).
   function openProduct(id) {
     editing = id || null;
-    const p = products.find((x) => x.id === id) || { nombre: '', categoria: GR.CATEGORIAS[0].id, marca: '', precio: '', precio_oferta: '', stock: 0, descripcion: '', imagen: '', activo: true };
+    const p = products.find((x) => x.id === id) || { nombre: '', categoria: '', marca: '', precio: '', precio_oferta: '', stock: 0, descripcion: '', imagen: '', activo: true };
     const f = $('#p-form');
     $('#p-dlg-title').textContent = id ? 'Editar producto' : 'Nuevo producto';
     $('#p-dlg-sub').textContent = id ? p.nombre : 'Completa los datos; podrás editarlos cuando quieras.';
@@ -277,6 +278,14 @@
   let galleryDraft = [];
   let specsDraft = [];
   const SPEC_GROUPS = ['Información del producto', 'Impresión', 'Copiado', 'Escaneo', 'Conectividad', 'Consumibles', 'Papel', 'Características físicas', 'Compatibilidad'];
+  const PHOTOCOPIER_SPECS = [
+    'Formato estándar',
+    'Color/B&N',
+    'Tecnología',
+    'Velocidad de numeración A4',
+    'Gramaje mínimo de papel',
+    'Gramaje máximo de papel',
+  ];
 
   function renderGalleryDraft() {
     $('#pf-gal-label').textContent = `Fotos adicionales (${galleryDraft.length}/8)`;
@@ -407,6 +416,7 @@
     const current = editing ? products.find((x) => x.id === editing) : null;
     const stock = current ? current.stock : Number(f.stock.value);
     if (nombre.length < 3) return err('Escribe el nombre del producto.', f.nombre);
+    if (!f.categoria.value) return err('Selecciona una categoría para el producto.', f.categoria);
     if (!(precio > 0)) return err('El precio debe ser mayor que 0.', f.precio);
     if (oferta != null && !(oferta > 0 && oferta < precio)) return err('El precio de oferta debe ser menor que el precio normal.', f.precio_oferta);
     if (!Number.isInteger(stock) || stock < 0) return err('El stock debe ser un número entero de 0 o más.', f.stock);
@@ -850,6 +860,16 @@
       GR.resetProducts(); products = GR.getProducts(); renderStats(); renderProducts(); GR.toast('Catálogo restablecido.');
     });
     $('#p-form').addEventListener('submit', (e) => { e.preventDefault(); if (!$('#p-save').disabled) saveProduct(); });
+    $('#p-cat').addEventListener('change', () => {
+      if (editing || $('#p-cat').value !== 'fotocopiadoras') return;
+      const existing = new Set(specsDraft.map((spec) => spec.nombre.trim().toLocaleLowerCase('es')));
+      const additions = PHOTOCOPIER_SPECS
+        .filter((name) => !existing.has(name.toLocaleLowerCase('es')))
+        .map((nombre) => ({ grupo: 'Información del producto', nombre, valor: '' }));
+      if (!additions.length) return;
+      specsDraft = [...specsDraft, ...additions];
+      renderSpecsDraft();
+    });
     $('#pf-gal-btn').addEventListener('click', addGalleryUrl);
     $('#pf-gal-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addGalleryUrl(); } });
     $('#pf-image-file-btn').addEventListener('click', () => $('#pf-image-file').click());
