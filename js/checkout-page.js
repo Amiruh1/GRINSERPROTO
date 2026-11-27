@@ -79,9 +79,9 @@
           <legend>Datos del cliente</legend>
           <div class="co-grid g2">
             ${field('Correo electrónico', false, 'email', `<input class="co-input" value="${GR.esc(user.email)}" readonly title="Es el correo de tu cuenta: ahí te enviamos la confirmación.">`)}
-            ${field('Nombre completo', true, 'nombre', `<input id="co-nombre" class="co-input" data-f="nombre" value="${GR.esc(f.nombre)}" placeholder="Ej. Juan Pérez García" autocomplete="name" maxlength="120">`)}
-            ${field('DNI', true, 'dni', `<input id="co-dni" class="co-input" data-f="dni" data-digits="8" value="${GR.esc(f.dni)}" placeholder="12345678" inputmode="numeric" maxlength="8">`)}
-            ${field('Teléfono', true, 'telefono', `<input id="co-telefono" class="co-input" data-f="telefono" data-digits="9" value="${GR.esc(f.telefono)}" placeholder="987654321" inputmode="numeric" autocomplete="tel" maxlength="9">`)}
+            ${field('Nombre completo', true, 'nombre', `<input id="co-nombre" class="co-input" data-f="nombre" value="${GR.esc(f.nombre)}" placeholder="" autocomplete="name" maxlength="120">`)}
+            ${field('DNI', true, 'dni', `<input id="co-dni" class="co-input" data-f="dni" data-digits="8" value="${GR.esc(f.dni)}" placeholder="" inputmode="numeric" maxlength="8">`)}
+            ${field('Teléfono', true, 'telefono', `<input id="co-telefono" class="co-input" data-f="telefono" data-digits="9" value="${GR.esc(f.telefono)}" placeholder="" inputmode="numeric" autocomplete="tel" maxlength="9">`)}
           </div>
         </fieldset>
 
@@ -449,7 +449,7 @@
     { k: 'provincia', label: 'Provincia', req: 2, icon: 'grid', ph: 'Ej. Lima', clean: onlyWords, msg: 'Obligatorio' },
     { k: 'departamento', label: 'Departamento', icon: 'map', ph: 'Ej. Lima', clean: onlyWords },
     { k: 'codigo_postal', label: 'Código postal', req: 5, icon: 'mail', ph: 'Ej. 15074', digits: 5, msg: 'Debe tener 5 dígitos.', hint: '5 dígitos, p. ej. 15074' },
-    { k: 'telefono_contacto', label: 'Teléfono de contacto', icon: 'phone', ph: 'Ej. 987654321', digits: 9 },
+    { k: 'telefono_contacto', label: 'Teléfono de contacto', icon: 'phone', ph: '', digits: 9 },
     { k: 'referencia', label: 'Referencias', icon: 'info', ph: 'Cerca de…, color de puerta…', span: true },
   ];
 
