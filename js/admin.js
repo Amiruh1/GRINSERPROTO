@@ -252,6 +252,7 @@
     for (const k of ['nombre', 'sku', 'marca', 'precio', 'stock', 'descripcion', 'imagen', 'garantia']) f.elements[k].value = p[k] ?? '';
     galleryDraft = GR.imagesOf(p);
     specsDraft = GR.specsOf(p).map((spec) => ({ ...spec }));
+    selectedSpecCategory = p.categoria || '';
     $('#pf-gal-url').value = '';
     $('#pf-image-file').value = '';
     $('#pf-gal-files').value = '';
@@ -277,6 +278,7 @@
   // ── Fotos adicionales y especificaciones (borradores mientras la ventana está abierta) ──
   let galleryDraft = [];
   let specsDraft = [];
+  let selectedSpecCategory = '';
   const SPEC_GROUPS = ['Información del producto', 'Impresión', 'Copiado', 'Escaneo', 'Conectividad', 'Consumibles', 'Papel', 'Características físicas', 'Compatibilidad'];
   const CATEGORY_DEFAULT_SPECS = {
     fotocopiadoras: [
@@ -873,13 +875,18 @@
     });
     $('#p-form').addEventListener('submit', (e) => { e.preventDefault(); if (!$('#p-save').disabled) saveProduct(); });
     $('#p-cat').addEventListener('change', () => {
-      const defaults = CATEGORY_DEFAULT_SPECS[$('#p-cat').value];
-      if (editing || !defaults) return;
+      const category = $('#p-cat').value;
+      if (category === selectedSpecCategory) return;
+      const previousDefaults = new Set((CATEGORY_DEFAULT_SPECS[selectedSpecCategory] || [])
+        .map((name) => name.toLocaleLowerCase('es')));
+      specsDraft = specsDraft.filter((spec) =>
+        !spec.categoryDefault && !previousDefaults.has(spec.nombre.trim().toLocaleLowerCase('es')));
+      selectedSpecCategory = category;
+      const defaults = CATEGORY_DEFAULT_SPECS[category] || [];
       const existing = new Set(specsDraft.map((spec) => spec.nombre.trim().toLocaleLowerCase('es')));
       const additions = defaults
         .filter((name) => !existing.has(name.toLocaleLowerCase('es')))
-        .map((nombre) => ({ grupo: 'Información del producto', nombre, valor: '' }));
-      if (!additions.length) return;
+        .map((nombre) => ({ grupo: 'Información del producto', nombre, valor: '', categoryDefault: true }));
       specsDraft = [...specsDraft, ...additions];
       renderSpecsDraft();
     });
