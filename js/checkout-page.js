@@ -47,7 +47,7 @@
         <h2 id="co-sum-title">Resumen del pedido</h2>
         <ul class="co-items">${items.map((i) => `
           <li>
-            <span class="co-thumb">${i.imagen ? `<img src="${GR.esc(i.imagen)}" alt="">` : GR.icon('box', 22)}<b>${i.cantidad}</b></span>
+            <span class="co-thumb">${i.imagen ? `<img src="${GR.esc(GR.assetPath(i.imagen))}" alt="">` : GR.icon('box', 22)}<b>${i.cantidad}</b></span>
             <span class="co-item-name">${GR.esc(i.nombre)}${i.cantidad > 1 ? `<small>${GR.money(i.precio)} c/u</small>` : ''}</span>
             <strong>${GR.money(i.precio * i.cantidad)}</strong>
           </li>`).join('')}</ul>
@@ -114,7 +114,7 @@
 
         ${err ? `<p class="err" role="alert">${GR.esc(err)}</p>` : ''}
         <div class="co-actions">
-          <a href="carrito.html" class="btn co-back">${GR.icon('chevron-left', 16)} Volver al carrito</a>
+          <a href="${GR.pagePath('carrito.html')}" class="btn co-back">${GR.icon('chevron-left', 16)} Volver al carrito</a>
           <button type="submit" class="btn co-next">Continuar al pago ${GR.icon('chevron-right', 16)}</button>
         </div>
       </form>`;
@@ -196,7 +196,7 @@
         </dl>
         <div class="ok-actions">
           <a class="btn ok-primary" href="${GR.waLink(`Hola Grinser, acabo de hacer el pedido ${v.id} por ${GR.money(v.total)}. Quisiera coordinar la entrega.`)}" target="_blank" rel="noopener">${GR.waIcon(17)} Coordinar entrega por WhatsApp</a>
-          <a href="productos.html" class="btn ok-secondary">${GR.icon('cart', 17)} Seguir comprando</a>
+          <a href="${GR.pagePath('productos.html')}" class="btn ok-secondary">${GR.icon('cart', 17)} Seguir comprando</a>
         </div>
       </section>`;
   }
@@ -222,7 +222,7 @@
           <span class="cart-empty-icon">${GR.icon('cart', 40)}</span>
           <h1>No hay productos para pagar</h1>
           <p class="muted">Agrega productos a tu carrito para finalizar la compra.</p>
-          <a href="productos.html" class="btn cart-pay">Ir a la tienda ${GR.icon('arrow-right', 16)}</a>
+          <a href="${GR.pagePath('productos.html')}" class="btn cart-pay">Ir a la tienda ${GR.icon('arrow-right', 16)}</a>
         </div>`;
       return;
     }
@@ -295,7 +295,7 @@
       appearance: {
         theme: 'default', hiddenCulqiLogo: false, menuType: 'sidebar',
         buttonCardPayText: 'Pagar', // Culqi agrega el monto al lado
-        logo: new URL('img/logo-grinser.png', location.href).href,
+        logo: new URL(GR.assetPath('img/logo-grinser.png'), location.href).href,
         defaultStyle: { bannerColor: '#215f9a', buttonBackground: '#0f2c4c', menuColor: '#215f9a', linksColor: '#215f9a', buttonTextColor: '#ffffff', priceColor: '#0f2c4c' },
       },
     };

@@ -24,13 +24,13 @@
     if (!u) {
       $('#admin').hidden = true;
       $('#guard').hidden = false;
-      $('#guard').innerHTML = `<div class="guard-card"><img src="img/logo-grinser.png" alt="Grinser" width="220" height="69"><h1>Panel de empresa</h1><p class="muted">Inicia sesión con una cuenta de administrador.</p><button type="button" class="btn btn-primary" data-login>${GR.icon('lock', 17)} Ingresar</button><a class="link-btn" href="index.html">Volver a la tienda</a></div>`;
+      $('#guard').innerHTML = `<div class="guard-card"><img src="${GR.assetPath('img/logo-grinser.png')}" alt="Grinser" width="220" height="69"><h1>Panel de empresa</h1><p class="muted">Inicia sesión con una cuenta de administrador.</p><button type="button" class="btn btn-primary" data-login>${GR.icon('lock', 17)} Ingresar</button><a class="link-btn" href="${GR.appPath('index.html')}">Volver a la tienda</a></div>`;
       GR.openAuth('login', { modo: 'empresa', onSuccess: guard });
       return false;
     }
     if (u.rol !== 'admin') {
       GR.toast('No tienes permisos para ver el panel de empresa.', 'error');
-      setTimeout(() => { location.href = 'index.html'; }, 900);
+      setTimeout(() => { location.href = GR.appPath('index.html'); }, 900);
       $('#guard').innerHTML = '<p class="muted">Redirigiendo a la tienda…</p>';
       return false;
     }
@@ -162,7 +162,7 @@
       <thead><tr><th>Producto</th><th>Categoría</th><th class="num">Precio</th><th class="num">Stock</th><th>Estado</th><th class="actions"><span class="sr-only">Acciones</span></th></tr></thead>
       <tbody>${list.length ? list.map((p) => `
         <tr>
-          <td><div class="t-prod"><span class="t-thumb">${p.imagen ? `<img src="${GR.esc(p.imagen)}" alt="">` : GR.icon(GR.cat(p.categoria).icon, 20)}</span><span><b>${GR.esc(p.nombre)}</b><small>${GR.esc(p.sku || 'sin SKU')} · ${GR.esc(p.marca || 'sin marca')}</small></span></div></td>
+          <td><div class="t-prod"><span class="t-thumb">${p.imagen ? `<img src="${GR.esc(GR.assetPath(p.imagen))}" alt="">` : GR.icon(GR.cat(p.categoria).icon, 20)}</span><span><b>${GR.esc(p.nombre)}</b><small>${GR.esc(p.sku || 'sin SKU')} · ${GR.esc(p.marca || 'sin marca')}</small></span></div></td>
           <td>${GR.esc(GR.cat(p.categoria).nombre)}</td>
           <td class="num">${GR.money(GR.precioFinal(p))}${GR.enOferta(p) ? `<br><s class="muted">${GR.money(p.precio)}</s>` : ''}</td>
           <td class="num"><span class="stock ${p.stock <= 0 ? 'out' : p.stock <= 5 ? 'low' : ''}">${p.stock}</span></td>
@@ -314,7 +314,7 @@
     $('#pf-gal-label').textContent = `Fotos adicionales (${galleryDraft.length}/8)`;
     $('#pf-gallery').innerHTML = galleryDraft.map((url, i) => `
       <div class="pm-gal-thumb">
-        <img src="${GR.esc(url)}" alt="Foto ${i + 2}">
+        <img src="${GR.esc(GR.assetPath(url))}" alt="Foto ${i + 2}">
         <div>
           <button type="button" class="btn btn-sm" data-gal-move="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Mover a la izquierda">←</button>
           <button type="button" class="btn btn-sm" data-gal-move="${i}" data-d="1" ${i === galleryDraft.length - 1 ? 'disabled' : ''} aria-label="Mover a la derecha">→</button>
@@ -417,7 +417,7 @@
       : oferta != null && precio > 0 ? 'La oferta debe ser menor al precio de venta.' : 'Se calcula solo.';
     $('#pf-final-hint').classList.toggle('is-warn', oferta != null && precio > 0 && !valida);
     const url = f.imagen.value.trim();
-    $('#pf-preview').innerHTML = url ? `<img src="${GR.esc(url)}" alt="Vista previa">` : GR.icon('image', 26);
+    $('#pf-preview').innerHTML = url ? `<img src="${GR.esc(GR.assetPath(url))}" alt="Vista previa">` : GR.icon('image', 26);
     const img = $('#pf-preview img');
     if (img) img.addEventListener('error', () => { $('#pf-preview').innerHTML = GR.icon('image', 26); }, { once: true });
   }
@@ -1036,7 +1036,7 @@
       if (t.hasAttribute('data-menu')) document.body.classList.toggle('menu-open');
       if (t.hasAttribute('data-menu-close')) document.body.classList.remove('menu-open');
       if (t.hasAttribute('data-login')) GR.openAuth('login', { modo: 'empresa', onSuccess: guard });
-      if (t.hasAttribute('data-logout')) { GR.logout(); location.href = 'index.html'; }
+      if (t.hasAttribute('data-logout')) { GR.logout(); location.href = GR.appPath('index.html'); }
     });
     document.addEventListener('change', (e) => {
       if (e.target.dataset.eventToggle) saveEventSetting(e.target.dataset.eventToggle, e.target.checked);

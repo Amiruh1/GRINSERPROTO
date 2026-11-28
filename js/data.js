@@ -4,6 +4,10 @@
 (function () {
   const GR = (window.GR = window.GR || {});
   const PREFIX = 'grinser_';
+  const isHtmlPage = () => /\/paginas_html\//i.test(location.pathname);
+  GR.appPath = (path) => `${isHtmlPage() ? '../' : ''}${path}`;
+  GR.pagePath = (page) => `${isHtmlPage() ? '' : 'paginas_html/'}${page}`;
+  GR.assetPath = (path) => (/^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(path) || !isHtmlPage() ? path : `../${path}`);
 
   GR.read = (k, d) => {
     try { const v = JSON.parse(localStorage.getItem(PREFIX + k)); return v ?? d; } catch { return d; }

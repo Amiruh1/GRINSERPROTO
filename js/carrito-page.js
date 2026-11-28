@@ -14,8 +14,8 @@
 
   const crumbs = `
     <nav class="crumbs" aria-label="Ruta">
-      <a href="index.html">Inicio</a>${GR.icon('chevron-right', 13)}
-      <a href="productos.html">Productos</a>${GR.icon('chevron-right', 13)}
+      <a href="${GR.appPath('index.html')}">Inicio</a>${GR.icon('chevron-right', 13)}
+      <a href="${GR.pagePath('productos.html')}">Productos</a>${GR.icon('chevron-right', 13)}
       <span aria-current="page">Carrito</span>
     </nav>`;
 
@@ -25,7 +25,7 @@
     const href = GR.productHref(i);
     return `
       <li class="cart-item">
-        <a href="${href}" class="cart-thumb" tabindex="-1" aria-hidden="true">${i.imagen ? `<img src="${GR.esc(i.imagen)}" alt="">` : GR.icon('box', 34)}</a>
+        <a href="${href}" class="cart-thumb" tabindex="-1" aria-hidden="true">${i.imagen ? `<img src="${GR.esc(GR.assetPath(i.imagen))}" alt="">` : GR.icon('box', 34)}</a>
         <div class="cart-info">
           <a href="${href}" class="cart-name">${GR.esc(i.nombre)}</a>
           ${i.marca ? `<span class="cart-brand">${GR.esc(i.marca)}</span>` : ''}
@@ -56,7 +56,7 @@
           <span class="cart-empty-icon">${GR.icon('cart', 40)}</span>
           <h1>Tu carrito está vacío</h1>
           <p class="muted">Explora la tienda y agrega los productos que necesites.</p>
-          <a href="productos.html" class="btn cart-pay">Ir a la tienda ${GR.icon('arrow-right', 16)}</a>
+          <a href="${GR.pagePath('productos.html')}" class="btn cart-pay">Ir a la tienda ${GR.icon('arrow-right', 16)}</a>
         </div>`;
       return;
     }
@@ -81,7 +81,7 @@
             <h2 id="cart-items-title">${GR.icon('cart', 20)} Productos en tu carrito <span class="cart-count">(${t.count})</span></h2>
             <ul>${items.map(itemHtml).join('')}</ul>
             <div class="cart-list-foot">
-              <a href="productos.html" class="cart-back">${GR.icon('chevron-left', 15)} Seguir comprando</a>
+              <a href="${GR.pagePath('productos.html')}" class="cart-back">${GR.icon('chevron-left', 15)} Seguir comprando</a>
               <button type="button" class="btn cart-clear" data-clear>${GR.icon('trash', 16)} Vaciar carrito</button>
             </div>
           </section>
@@ -97,9 +97,9 @@
               <div class="cart-total"><span>Total sin envío</span><strong>${GR.money(t.subtotal)}</strong></div>
               <small class="cart-fine">IGV incluido. El pago se realiza de forma segura con Culqi.</small>
               ${user
-                ? `<a href="checkout.html" class="btn cart-pay">${GR.icon('card', 18)} Proceder al pago</a>`
+                ? `<a href="${GR.pagePath('checkout.html')}" class="btn cart-pay">${GR.icon('card', 18)} Proceder al pago</a>`
                 : `<button type="button" class="btn cart-pay" data-login-buy>${GR.icon('user', 18)} Ingresa para comprar</button>`}
-              <a href="productos.html" class="btn cart-continue">Continuar comprando</a>
+              <a href="${GR.pagePath('productos.html')}" class="btn cart-continue">Continuar comprando</a>
               <ul class="cart-trust">
                 <li>${GR.icon('shield', 17)} Compra segura</li>
                 <li>${GR.icon('headset', 17)} Soporte personalizado</li>
@@ -132,7 +132,7 @@
       }
       if (t.dataset.del) { GR.removeFromCart(t.dataset.del); GR.toast('Producto quitado del carrito.'); }
       if (t.hasAttribute('data-clear') && confirm('¿Seguro que quieres quitar todos los productos de tu carrito?')) GR.clearCart();
-      if (t.hasAttribute('data-login-buy')) GR.openAuth('login', { onSuccess: () => { location.href = 'checkout.html'; } });
+      if (t.hasAttribute('data-login-buy')) GR.openAuth('login', { onSuccess: () => { location.href = GR.pagePath('checkout.html'); } });
     });
     root.addEventListener('change', (e) => {
       if (e.target.dataset.qtyInput) GR.setCartQty(e.target.dataset.qtyInput, e.target.value);

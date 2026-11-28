@@ -5,12 +5,8 @@ Sitio estático de **Grinser EIRL – Grupo Innova Service**. Tiene catálogo, c
 ## Estructura
 
 ```
-index.html        Ofertas, banner de la tienda principal, carrito e inicio de sesión
-empresa.html      Información de la empresa
-servicio-tecnico.html  Servicios de soporte y mantenimiento
-repuestos-insumos.html Repuestos, consumibles y asesoría por WhatsApp
-productos.html    Catálogo de productos con filtros y consulta por WhatsApp
-admin.html        Panel de empresa (solo administradores): productos, usuarios y roles
+index.html        Página principal (se mantiene en la raíz para GitHub Pages)
+paginas_html/     Páginas de empresa, servicio técnico, productos, carrito, checkout y administración
 css/styles.css    Estilos
 js/productos.js   Catálogo inicial (edítalo o reemplázalo con el que exporta el panel)
 js/categorias.js  Categorías iniciales (edítalo o reemplázalo con el que exporta el panel)
@@ -55,9 +51,9 @@ Cambia estas contraseñas desde el panel (crea tu propio administrador y elimina
 ## Roles
 
 - **Cliente**: compra en la tienda. Se registra desde «Crear cuenta».
-- **Administrador**: entra por «Empresa» y llega a `admin.html`. Ahí gestiona productos (crear, editar, ocultar, eliminar, stock y ofertas) y usuarios (crear, cambiar rol, activar o desactivar, eliminar). Siempre debe quedar al menos un administrador activo.
+- **Administrador**: entra por «Empresa» y llega a `paginas_html/admin.html`. Ahí gestiona productos (crear, editar, ocultar, eliminar, stock y ofertas) y usuarios (crear, cambiar rol, activar o desactivar, eliminar). Siempre debe quedar al menos un administrador activo.
 
-Un cliente que abre `admin.html` vuelve a la tienda. Un administrador no puede entrar por «Cliente».
+Un cliente que abre `paginas_html/admin.html` vuelve a la tienda. Un administrador no puede entrar por «Cliente».
 
 ## Importante: los datos se guardan en el navegador
 

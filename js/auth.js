@@ -217,7 +217,7 @@
         <rect x="106" y="186" width="8" height="34" rx="2" fill="${C.poloDark}"/>
         <circle cx="110" cy="196" r="2.2" fill="#fff"/><circle cx="110" cy="209" r="2.2" fill="#fff"/>
         <!-- logo de la empresa bordado en el pecho -->
-        <image href="img/logo-grinser.png" x="120" y="196" width="56" height="17.5" preserveAspectRatio="xMidYMid meet"/>
+        <image href="${GR.assetPath('img/logo-grinser.png')}" x="120" y="196" width="56" height="17.5" preserveAspectRatio="xMidYMid meet"/>
         <!-- cabeza -->
         <ellipse cx="60" cy="102" rx="8" ry="11" fill="${C.skinDark}"/>
         <ellipse cx="160" cy="102" rx="8" ry="11" fill="${C.skinDark}"/>
@@ -318,7 +318,7 @@
       <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
         <button type="button" class="auth-close" data-close aria-label="Cerrar">${GR.icon('x', 18)}</button>
         <aside class="auth-side" aria-hidden="true">
-          <img class="auth-logo" src="img/logo-grinser.png" alt="" width="200" height="63">
+          <img class="auth-logo" src="${GR.assetPath('img/logo-grinser.png')}" alt="" width="200" height="63">
           <div class="auth-stage"><div class="auth-persona">${GR.personaSVG()}</div></div>
           <p class="auth-caption"></p>
         </aside>
@@ -451,7 +451,7 @@
       close();
       GR.toast(reg ? `¡Cuenta creada! Hola, ${u.nombre.split(' ')[0]}.` : `¡Hola, ${u.nombre.split(' ')[0]}!`);
       // El administrador va a su panel; el cliente se queda en la tienda.
-      if (u.rol === 'admin' && !/admin\.html$/.test(location.pathname)) { location.href = 'admin.html'; return; }
+      if (u.rol === 'admin' && !/admin\.html$/.test(location.pathname)) { location.href = GR.pagePath('admin.html'); return; }
       cb?.(u);
     } catch (ex) {
       st.busy = false;

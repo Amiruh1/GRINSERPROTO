@@ -42,7 +42,7 @@
     return `
       <div class="pd-gallery">
         <div class="pd-main" ${n > 1 ? 'tabindex="0"' : ''} aria-roledescription="galería" aria-label="Fotos de ${GR.esc(product.nombre)}">
-          ${n ? `<img src="${GR.esc(list[i])}" alt="${GR.esc(product.nombre)}${n > 1 ? `, foto ${i + 1} de ${n}` : ''}">`
+          ${n ? `<img src="${GR.esc(GR.assetPath(list[i]))}" alt="${GR.esc(product.nombre)}${n > 1 ? `, foto ${i + 1} de ${n}` : ''}">`
             : `<span class="pd-placeholder ph-${GR.esc(product.categoria)}">${GR.icon(GR.cat(product.categoria).icon, 96)}</span>`}
           ${n > 1 ? `
             <button type="button" class="pd-arrow prev" data-photo-step="-1" aria-label="Foto anterior">${GR.icon('chevron-left', 18)}</button>
@@ -51,7 +51,7 @@
         </div>
         ${n > 1 ? `<div class="pd-thumbs">${list.map((src, k) => `
           <button type="button" class="${k === i ? 'on' : ''}" data-photo="${k}" aria-label="Ver foto ${k + 1}" aria-current="${k === i}">
-            <img src="${GR.esc(src)}" alt="" loading="lazy">
+            <img src="${GR.esc(GR.assetPath(src))}" alt="" loading="lazy">
           </button>`).join('')}</div>` : ''}
       </div>`;
   }
@@ -68,12 +68,12 @@
     const highlights = mergeSame(GR.specsOf(product)).slice(0, 5);
     return `
       <div class="pd-info">
-        ${product.marca ? `<a href="productos.html?q=${encodeURIComponent(product.marca)}" class="pd-brand">${GR.esc(product.marca)}</a>` : ''}
+        ${product.marca ? `<a href="${GR.pagePath('productos.html')}?q=${encodeURIComponent(product.marca)}" class="pd-brand">${GR.esc(product.marca)}</a>` : ''}
         <h1>${GR.esc(product.nombre)}</h1>
         <p class="pd-meta">
           ${product.sku ? `<span>SKU: <b>${GR.esc(product.sku)}</b></span>` : ''}
           ${product.marca ? `<span>Marca: ${GR.esc(product.marca)}</span>` : ''}
-          <span>Categoría: <a href="productos.html?categoria=${encodeURIComponent(product.categoria)}">${GR.esc(GR.cat(product.categoria).nombre)}</a></span>
+          <span>Categoría: <a href="${GR.pagePath('productos.html')}?categoria=${encodeURIComponent(product.categoria)}">${GR.esc(GR.cat(product.categoria).nombre)}</a></span>
         </p>
 
         <div class="pd-price">
@@ -122,7 +122,7 @@
     if (tab === 'envio') panel = `
       <div class="pd-ship">
         <div>${GR.icon('truck', 22)}<div><strong>Envío a todo el Perú</strong><p>Enviamos a Lima y provincias. El costo y el plazo dependen de tu zona; te los confirmamos al coordinar el pedido.</p></div></div>
-        <div>${GR.icon('store', 22)}<div><strong>Recojo en tienda</strong><p>También puedes recoger tu pedido en nuestras tiendas de Lima. <a href="empresa.html#tiendas">Ver direcciones</a>.</p></div></div>
+        <div>${GR.icon('store', 22)}<div><strong>Recojo en tienda</strong><p>También puedes recoger tu pedido en nuestras tiendas de Lima. <a href="${GR.pagePath('empresa.html')}#tiendas">Ver direcciones</a>.</p></div></div>
         <div>${GR.icon('shield', 22)}<div><strong>Garantía</strong><p>${GR.esc(product.garantia || 'Producto original. Ante cualquier defecto de fábrica, contáctanos con tu comprobante.')}</p></div></div>
       </div>`;
     return `
@@ -144,7 +144,7 @@
       <section class="pd-related" aria-labelledby="rel-title">
         <div class="section-head">
           <div><span class="kicker">También te puede gustar</span><h2 id="rel-title">Productos relacionados</h2></div>
-          <a href="productos.html?categoria=${encodeURIComponent(product.categoria)}" class="see-all">Ver más en ${GR.esc(GR.cat(product.categoria).nombre)} ${GR.icon('arrow-right', 16)}</a>
+          <a href="${GR.pagePath('productos.html')}?categoria=${encodeURIComponent(product.categoria)}" class="see-all">Ver más en ${GR.esc(GR.cat(product.categoria).nombre)} ${GR.icon('arrow-right', 16)}</a>
         </div>
         <div class="pc-grid pc-grid-4">${list.map(GR.productCard).join('')}</div>
       </section>`;
@@ -154,18 +154,18 @@
     const id = new URLSearchParams(location.search).get('id');
     product = GR.getProducts().find((p) => p.id === id && p.activo !== false) || null;
     if (!product) {
-      root.innerHTML = `<div class="empty pd-missing">${GR.icon('search', 34)}<p>${id ? 'No encontramos este producto. Puede que ya no esté disponible.' : 'Producto no especificado.'}</p><a class="btn btn-primary" href="productos.html">Ver todos los productos</a></div>`;
+      root.innerHTML = `<div class="empty pd-missing">${GR.icon('search', 34)}<p>${id ? 'No encontramos este producto. Puede que ya no esté disponible.' : 'Producto no especificado.'}</p><a class="btn btn-primary" href="${GR.pagePath('productos.html')}">Ver todos los productos</a></div>`;
       return;
     }
     const category = GR.cat(product.categoria);
     document.title = `${product.nombre} | Grinser`;
     root.innerHTML = `
       <nav class="crumbs pd-crumbs" aria-label="Ruta">
-        <a href="index.html">Inicio</a>${GR.icon('chevron-right', 13)}
-        <a href="productos.html?categoria=${encodeURIComponent(category.id)}">${GR.esc(category.nombre)}</a>${GR.icon('chevron-right', 13)}
+        <a href="${GR.appPath('index.html')}">Inicio</a>${GR.icon('chevron-right', 13)}
+        <a href="${GR.pagePath('productos.html')}?categoria=${encodeURIComponent(category.id)}">${GR.esc(category.nombre)}</a>${GR.icon('chevron-right', 13)}
         <span aria-current="page">${GR.esc(product.nombre)}</span>
       </nav>
-      <article class="pd">${galleryHtml()}${infoHtml()}</article>
+      <article class="pd ${product.categoria === 'toner' ? 'is-toner' : ''}">${galleryHtml()}${infoHtml()}</article>
       ${tabsHtml()}
       ${relatedHtml()}`;
   }
@@ -190,7 +190,7 @@
         const q = Number($('#pd-qty').value) || 1;
         if (GR.addToCart(product.id, q)) {
           qty = 1;
-          if (t.dataset.buy === 'now') { location.href = 'carrito.html'; return; }
+          if (t.dataset.buy === 'now') { location.href = GR.pagePath('carrito.html'); return; }
         }
         swap('.pd-info', infoHtml());
       }

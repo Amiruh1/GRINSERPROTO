@@ -6,8 +6,8 @@
 
   header.innerHTML = `
     <div class="wrap hdr-main">
-      <a href="index.html" class="brand"><img src="img/logo-grinser.png" alt="Grinser EIRL – Grupo Innova Service" width="168" height="53"></a>
-      <form class="hdr-search" role="search" action="productos.html" method="get">
+      <a href="${GR.appPath('index.html')}" class="brand"><img src="${GR.assetPath('img/logo-grinser.png')}" alt="Grinser EIRL – Grupo Innova Service" width="168" height="53"></a>
+      <form class="hdr-search" role="search" action="${GR.pagePath('productos.html')}" method="get">
         <label for="q" class="sr-only">Buscar productos</label>
         <input id="q" name="q" type="search" placeholder="Buscar por producto o marca…" autocomplete="off">
         <button type="submit" aria-label="Buscar">${GR.icon('search', 18)}</button>
@@ -23,22 +23,22 @@
           <div id="cat-drop" class="cat-drop" hidden></div>
         </div>
         <ul class="nav-links" id="nav-links">
-          <li><a href="index.html">Inicio</a></li>
-          <li><a href="index.html?categoria=ofertas#tienda" class="hot">Ofertas</a></li>
-          <li><a href="empresa.html">Empresa</a></li>
-          <li><a href="servicio-tecnico.html">Servicio Técnico</a></li>
-          <li><a href="repuestos-insumos.html">Repuestos e Insumos</a></li>
+          <li><a href="${GR.appPath('index.html')}">Inicio</a></li>
+          <li><a href="${GR.appPath('index.html?categoria=ofertas#tienda')}" class="hot">Ofertas</a></li>
+          <li><a href="${GR.pagePath('empresa.html')}">Empresa</a></li>
+          <li><a href="${GR.pagePath('servicio-tecnico.html')}">Servicio Técnico</a></li>
+          <li><a href="${GR.pagePath('repuestos-insumos.html')}">Repuestos e Insumos</a></li>
           <li class="nav-product">
             <button type="button" class="nav-product-toggle" aria-expanded="false" aria-controls="nav-product-drop">
               Productos ${GR.icon('chevron-down', 15)}
             </button>
             <div class="nav-product-drop" id="nav-product-drop" hidden>
-              <a href="productos.html">${GR.icon('grid', 17)}Ver todos los productos</a>
-              ${GR.CATEGORIAS.map((category) => `<a href="productos.html?categoria=${encodeURIComponent(category.id)}">${GR.icon(category.icon, 17)}${GR.esc(category.nombre)}</a>`).join('')}
+              <a href="${GR.pagePath('productos.html')}">${GR.icon('grid', 17)}Ver todos los productos</a>
+              ${GR.CATEGORIAS.map((category) => `<a href="${GR.pagePath('productos.html')}?categoria=${encodeURIComponent(category.id)}">${GR.icon(category.icon, 17)}${GR.esc(category.nombre)}</a>`).join('')}
             </div>
           </li>
         </ul>
-        <a href="carrito.html" id="cart-btn" class="cart-pill" aria-label="Abrir carrito">
+        <a href="${GR.pagePath('carrito.html')}" id="cart-btn" class="cart-pill" aria-label="Abrir carrito">
           <span class="cart-ic">${GR.icon('cart', 20)}<b id="cart-count">0</b></span>
           <span id="cart-sum">S/ 0.00</span>
         </a>
@@ -48,15 +48,15 @@
   footer.innerHTML = `
     <div class="wrap footer-in">
       <div class="footer-info">
-        <img src="img/logo-grinser-transparente.png" alt="Grinser EIRL – Grupo Innova Service" width="210" height="66">
+        <img src="${GR.assetPath('img/logo-grinser-transparente.png')}" alt="Grinser EIRL – Grupo Innova Service" width="210" height="66">
         <nav class="footer-links" aria-label="Enlaces del pie">
-          <a href="index.html">Inicio</a>
-          <a href="index.html?categoria=ofertas#tienda">Ofertas</a>
-          <a href="productos.html">Productos</a>
-          <a href="empresa.html">Empresa</a>
-          <a href="servicio-tecnico.html">Servicio Técnico</a>
-          <a href="repuestos-insumos.html">Repuestos e Insumos</a>
-          <a href="empresa.html#tiendas">Nuestras tiendas</a>
+          <a href="${GR.appPath('index.html')}">Inicio</a>
+          <a href="${GR.appPath('index.html?categoria=ofertas#tienda')}">Ofertas</a>
+          <a href="${GR.pagePath('productos.html')}">Productos</a>
+          <a href="${GR.pagePath('empresa.html')}">Empresa</a>
+          <a href="${GR.pagePath('servicio-tecnico.html')}">Servicio Técnico</a>
+          <a href="${GR.pagePath('repuestos-insumos.html')}">Repuestos e Insumos</a>
+          <a href="${GR.pagePath('empresa.html')}#tiendas">Nuestras tiendas</a>
           <a class="wa-text-link" target="_blank" rel="noopener">Contáctenos</a>
         </nav>
         <ul class="footer-contact">
@@ -88,7 +88,7 @@
         </summary>
         <div class="um-pop">
           <p class="um-mail">${GR.esc(user.email)}</p>
-          ${user.rol === 'admin' ? `<a href="admin.html">${GR.icon('grid', 16)} Panel empresa</a>` : ''}
+          ${user.rol === 'admin' ? `<a href="${GR.pagePath('admin.html')}">${GR.icon('grid', 16)} Panel empresa</a>` : ''}
           <button type="button" data-logout>${GR.icon('logout', 16)} Cerrar sesión</button>
         </div>
       </details>`;
@@ -119,7 +119,7 @@
         <article class="store">
           <div class="store-card">
             <div class="store-photo ${store.foto ? '' : 'is-empty'}">
-              ${store.foto ? `<img src="${GR.esc(store.foto)}" alt="Fachada de ${GR.esc(store.nombre)}" loading="lazy">` : ''}
+              ${store.foto ? `<img src="${GR.esc(GR.assetPath(store.foto))}" alt="Fachada de ${GR.esc(store.nombre)}" loading="lazy">` : ''}
               ${store.etiqueta ? `<span class="store-tag">${GR.esc(store.etiqueta)}</span>` : ''}
             </div>
             <div class="store-info">
@@ -161,7 +161,7 @@
       }
       document.querySelector('#cat-drop').innerHTML = categories.map((category) =>
         `<button type="button" data-category="${GR.esc(category.id)}">${GR.icon(category.icon, 18)}<span>${GR.esc(category.nombre)}</span></button>`,
-      ).join('') + `<a href="index.html?categoria=ofertas#tienda" class="hot">${GR.icon('percent', 18)}<span>Ofertas</span></a>`;
+      ).join('') + `<a href="${GR.appPath('index.html?categoria=ofertas#tienda')}" class="hot">${GR.icon('percent', 18)}<span>Ofertas</span></a>`;
     };
     renderCategories();
     GR.dataReady.then(() => { renderCategories(); renderCartSummary(); });
@@ -187,7 +187,7 @@
       const target = event.target.closest('button, a');
       if (target?.hasAttribute('data-login')) GR.openAuth('login');
       if (target?.hasAttribute('data-logout')) GR.logout();
-      if (target?.dataset.category) location.href = `productos.html?categoria=${encodeURIComponent(target.dataset.category)}`;
+      if (target?.dataset.category) location.href = `${GR.pagePath('productos.html')}?categoria=${encodeURIComponent(target.dataset.category)}`;
       if (!event.target.closest('.cat-menu')) {
         document.querySelector('#cat-drop').hidden = true;
         document.querySelector('#cat-toggle').setAttribute('aria-expanded', 'false');

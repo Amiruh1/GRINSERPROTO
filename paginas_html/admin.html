@@ -6,18 +6,18 @@
   <title>Grinser · Panel de empresa</title>
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#16467a">
-  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="icon" type="image/png" href="../img/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="../css/styles.css?v=20261128-1">
 </head>
 <body class="admin-body">
   <div id="guard" class="guard"><p class="muted">Cargando…</p></div>
 
   <div id="admin" class="admin-shell" hidden>
     <aside class="as-side" id="admin-menu" aria-label="Menú del panel">
-      <a href="admin.html" class="as-brand"><img src="img/logo-grinser.png" alt="Grinser, panel de empresa" width="180" height="56"></a>
+      <a href="admin.html" class="as-brand"><img src="../img/logo-grinser.png" alt="Grinser, panel de empresa" width="180" height="56"></a>
       <span class="as-section-title">Operación empresa</span>
       <nav class="as-nav">
         <button type="button" class="as-link" data-tab="ventas"><i data-icon="cart" data-size="19"></i> Ventas</button>
@@ -25,7 +25,7 @@
         <button type="button" class="as-link" data-tab="categorias"><i data-icon="grid" data-size="19"></i> Categorías</button>
         <button type="button" class="as-link" data-tab="eventos"><i data-icon="calendar" data-size="19"></i> Eventos</button>
         <button type="button" class="as-link" data-tab="usuarios"><i data-icon="users" data-size="19"></i> Usuarios y roles</button>
-        <a class="as-link" href="index.html"><i data-icon="store" data-size="19"></i> Ver tienda</a>
+        <a class="as-link" href="../index.html"><i data-icon="store" data-size="19"></i> Ver tienda</a>
       </nav>
       <button type="button" class="as-logout" data-logout><i data-icon="logout" data-size="18"></i> Salir</button>
     </aside>
@@ -176,8 +176,8 @@
             <div>
               <input id="pf-imagen" class="pm-input" name="imagen" maxlength="400" placeholder="Pega una URL https:// o una ruta como img/productos/foto.jpg">
               <button type="button" class="btn btn-sm pm-file-btn" id="pf-image-file-btn">Elegir archivo</button>
-              <input id="pf-image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
-              <span class="pm-hint">Se muestra en la tarjeta del producto. Si la dejas vacía, se usa el ícono de la categoría.</span>
+              <input id="pf-image-file" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Elegir imagen principal desde tu computadora">
+              <span class="pm-hint">Elige una imagen de tu computadora. Se subirá a Google Drive para que pueda verse en la tienda; requiere Google Sheets conectado.</span>
             </div>
           </div>
         </div>
@@ -190,7 +190,7 @@
           </div>
           <div class="pm-gal-file">
             <button type="button" class="btn btn-sm" id="pf-gal-file-btn">Subir archivos</button>
-            <input id="pf-gal-files" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+            <input id="pf-gal-files" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple aria-label="Elegir imágenes adicionales desde tu computadora">
             <span class="pm-hint">JPG, PNG, WebP o GIF; máximo 5 MB por imagen.</span>
           </div>
           <span class="pm-hint">Se muestran en la galería del producto, después de la imagen principal.</span>
@@ -288,11 +288,11 @@
     </form>
   </dialog>
 
-  <script src="js/productos.js"></script>
-  <script src="js/categorias.js?v=category-name-1"></script>
-  <script src="js/sheets-config.js?v=sheets-url-3"></script>
-  <script src="js/data.js?v=accounts-central-1"></script>
-  <script src="js/auth.js?v=accounts-central-1"></script>
-  <script src="js/admin.js?v=events-manual-1"></script>
+  <script src="../js/productos.js"></script>
+  <script src="../js/categorias.js?v=category-name-1"></script>
+  <script src="../js/sheets-config.js?v=sheets-url-3"></script>
+  <script src="../js/data.js?v=accounts-central-1"></script>
+  <script src="../js/auth.js?v=accounts-central-1"></script>
+  <script src="../js/admin.js?v=events-manual-1"></script>
 </body>
 </html>

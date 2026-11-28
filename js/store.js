@@ -18,7 +18,7 @@
   const countOf = (cat) => visible().filter((p) => (cat === 'ofertas' ? GR.enOferta(p) : cat === 'todas' || p.categoria === cat)).length;
 
   const media = (p, size = 46) => p.imagen
-    ? `<img src="${GR.esc(p.imagen)}" alt="" loading="lazy">`
+    ? `<img src="${GR.esc(GR.assetPath(p.imagen))}" alt="" loading="lazy">`
     : `<span class="ph ph-${GR.esc(p.categoria)}">${GR.icon(GR.cat(p.categoria).icon, size)}</span>`;
 
   // ── Navegación: menú, categorías y filtros ─────────────────────────────
@@ -134,10 +134,10 @@
     const agotado = p.stock <= 0;
     return `
       <article class="card ${agotado ? 'is-out' : ''}">
-        <a class="card-media" href="producto.html?id=${encodeURIComponent(p.id)}" tabindex="-1" aria-hidden="true">${media(p)}${off ? `<span class="badge-off">-${off}%</span>` : ''}</a>
+        <a class="card-media" href="${GR.pagePath('producto.html')}?id=${encodeURIComponent(p.id)}" tabindex="-1" aria-hidden="true">${media(p)}${off ? `<span class="badge-off">-${off}%</span>` : ''}</a>
         <div class="card-body">
           <span class="card-cat">${GR.esc(GR.cat(p.categoria).nombre)}${p.marca ? ` · ${GR.esc(p.marca)}` : ''}</span>
-          <h3 class="card-title"><a href="producto.html?id=${encodeURIComponent(p.id)}">${GR.esc(p.nombre)}</a></h3>
+          <h3 class="card-title"><a href="${GR.pagePath('producto.html')}?id=${encodeURIComponent(p.id)}">${GR.esc(p.nombre)}</a></h3>
           <p class="card-desc">${GR.esc(p.descripcion)}</p>
           <div class="card-price"><strong>${GR.money(final)}</strong>${off ? `<s>${GR.money(p.precio)}</s>` : ''}</div>
           <span class="stock ${agotado ? 'out' : p.stock <= 5 ? 'low' : ''}">${agotado ? 'Agotado' : p.stock <= 5 ? `¡Quedan ${p.stock}!` : `${p.stock} en stock`}</span>
@@ -502,7 +502,7 @@
         </summary>
         <div class="um-pop">
           <p class="um-mail">${GR.esc(u.email)}</p>
-          ${u.rol === 'admin' ? `<a href="admin.html">${GR.icon('grid', 16)} Panel empresa</a>` : ''}
+          ${u.rol === 'admin' ? `<a href="${GR.pagePath('admin.html')}">${GR.icon('grid', 16)} Panel empresa</a>` : ''}
           <button type="button" data-logout>${GR.icon('logout', 16)} Cerrar sesión</button>
         </div>
       </details>`;
@@ -606,7 +606,7 @@
     $('#q').addEventListener('input', (e) => { state.q = e.target.value; renderGrid(); });
     $('#search-form').addEventListener('submit', (e) => { e.preventDefault(); state.q = $('#q').value; goTo(state.cat === 'todas' || state.cat === 'ofertas' ? state.cat : 'todas'); });
     $('#sort')?.addEventListener('change', (e) => { state.sort = e.target.value; renderGrid(); });
-    $('#cart-btn').addEventListener('click', () => { location.href = 'carrito.html'; });
+    $('#cart-btn').addEventListener('click', () => { location.href = GR.pagePath('carrito.html'); });
     $('#checkout').addEventListener('click', checkout);
     $('#cart-clear').addEventListener('click', () => { if (confirm('¿Vaciar el carrito?')) { cart = []; saveCart(); } });
     $('#cat-toggle').addEventListener('click', () => {
@@ -674,6 +674,6 @@
     });
     const params = new URLSearchParams(window.location.search);
     if (params.get('login') === '1') GR.openAuth('login');
-    if (params.get('carrito') === '1') location.replace('carrito.html');
+    if (params.get('carrito') === '1') location.replace(GR.pagePath('carrito.html'));
   });
 })();

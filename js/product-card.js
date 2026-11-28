@@ -5,7 +5,7 @@
   const GR = window.GR;
   const MAX_QTY = 99;
 
-  GR.productHref = (product) => `producto.html?id=${encodeURIComponent(product.id)}`;
+  GR.productHref = (product) => `${GR.pagePath('producto.html')}?id=${encodeURIComponent(product.id)}`;
 
   // «S/ 4,990» grande; los céntimos solo se muestran si existen.
   GR.priceNumber = (value) => {
@@ -16,7 +16,7 @@
   GR.shortMoney = (value) => `S/ ${GR.priceNumber(value)}`;
 
   GR.productMedia = (product, size = 54) => product.imagen
-    ? `<img src="${GR.esc(product.imagen)}" alt="${GR.esc(product.nombre)}" loading="lazy">`
+    ? `<img src="${GR.esc(GR.assetPath(product.imagen))}" alt="${GR.esc(product.nombre)}" loading="lazy">`
     : `<span class="pc-ph ph-${GR.esc(product.categoria)}">${GR.icon(GR.cat(product.categoria).icon, size)}</span>`;
 
   GR.productCard = (product) => {
@@ -27,7 +27,7 @@
     const href = GR.productHref(product);
     const stock = Number(product.stock) || 0;
     return `
-      <article class="pc ${stock <= 0 ? 'is-out' : ''}">
+      <article class="pc ${product.categoria === 'toner' ? 'is-toner' : ''} ${stock <= 0 ? 'is-out' : ''}">
         <div class="pc-tags">
           ${descuento > 0 ? `<span class="pc-discount" title="Con descuento">-${descuento}%</span>` : ''}
           <span class="pc-chip">${GR.esc(GR.cat(product.categoria).nombre)}</span>
