@@ -42,8 +42,9 @@
     return `
       <div class="pd-gallery">
         <div class="pd-main" ${n > 1 ? 'tabindex="0"' : ''} aria-roledescription="galería" aria-label="Fotos de ${GR.esc(product.nombre)}">
-          ${n ? `<img src="${GR.esc(GR.assetPath(list[i]))}" alt="${GR.esc(product.nombre)}${n > 1 ? `, foto ${i + 1} de ${n}` : ''}">`
+          ${n ? `<img src="${GR.esc(GR.assetPath(list[i]))}" alt="${GR.esc(product.nombre)}${n > 1 ? `, foto ${i + 1} de ${n}` : ''}" data-zoom tabindex="0" role="button" aria-label="Ampliar imagen de ${GR.esc(product.nombre)}">`
             : `<span class="pd-placeholder ph-${GR.esc(product.categoria)}">${GR.icon(GR.cat(product.categoria).icon, 96)}</span>`}
+          ${n ? '<span class="pd-zoom-hint" aria-hidden="true">Haz clic para ampliar</span>' : ''}
           ${n > 1 ? `
             <button type="button" class="pd-arrow prev" data-photo-step="-1" aria-label="Foto anterior">${GR.icon('chevron-left', 18)}</button>
             <button type="button" class="pd-arrow next" data-photo-step="1" aria-label="Foto siguiente">${GR.icon('chevron-right', 18)}</button>
@@ -181,6 +182,14 @@
     window.addEventListener('gr:cart', () => { if (product) swap('.pd-info', infoHtml()); });
 
     root.addEventListener('click', (e) => {
+      const zoomTrigger = e.target.closest('[data-zoom]');
+      if (zoomTrigger && product) {
+        const zoomed = zoomTrigger.classList.toggle('is-zoomed');
+        zoomTrigger.setAttribute('aria-label', `${zoomed ? 'Alejar' : 'Ampliar'} imagen de ${product.nombre}`);
+        const hint = root.querySelector('.pd-zoom-hint');
+        if (hint) hint.textContent = zoomed ? 'Haz clic para alejar' : 'Haz clic para ampliar';
+        return;
+      }
       const t = e.target.closest('button, a');
       if (!t || !product) return;
       if (t.dataset.photoStep) stepPhoto(Number(t.dataset.photoStep));
@@ -206,6 +215,10 @@
       if (e.target.id === 'pd-qty') { qty = Math.max(1, Number(e.target.value) || 1); swap('.pd-info', infoHtml()); }
     });
     root.addEventListener('keydown', (e) => {
+      if (e.target.matches('[data-zoom]') && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        e.target.click();
+      }
       if (e.target.closest('.pd-main') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
         stepPhoto(e.key === 'ArrowLeft' ? -1 : 1);
         root.querySelector('.pd-main')?.focus();

@@ -32,6 +32,19 @@ El panel sincroniza productos al crear, editar, eliminar o registrar movimientos
 
 En el editor de productos también puedes elegir imágenes desde el dispositivo. Se suben a Google Drive con acceso de lectura mediante enlace y se guarda su URL en el catálogo. Se admiten JPG, PNG, WebP y GIF de hasta 5 MB cada uno; esta función requiere desplegar la versión actualizada de `Code.gs` y autorizar el acceso a Drive con la cuenta propietaria del script. Cualquier persona con el enlace podrá ver esas imágenes.
 
+## Cambiar la cuenta de Google Drive para las imagenes
+
+Las imagenes nuevas se crean en **Mi unidad de la cuenta que ejecuta la implementacion web**: el codigo usa `DriveApp.createFile()` y la implementacion recomendada se ejecuta como quien la publica. Para usar otra cuenta:
+
+1. Comparte la hoja de calculo con esa cuenta y dale permiso de Editor.
+2. Inicia sesion en Google con la cuenta de destino, abre la hoja y entra a **Extensiones -> Apps Script**.
+3. Autoriza el acceso a Drive cuando Google lo solicite.
+4. En Apps Script, crea una implementacion web nueva y elige ejecutar como tu cuenta y permitir acceso a Cualquier persona. Vuelve a configurar `GRINSER_ADMIN_KEY` en las propiedades del proyecto si corresponde.
+5. Si la nueva implementacion genera otra URL `/exec`, actualizala en `js/sheets-config.js` y publica el sitio.
+6. Prueba subir una imagen desde el panel y verifica que aparezca en el Drive de la cuenta nueva.
+
+Las imagenes que ya se subieron no se mueven: permanecen en la cuenta anterior y sus enlaces guardados siguen funcionando mientras mantengan el acceso mediante enlace. Este cambio solo afecta las subidas nuevas.
+
 ## Eventos de temporada
 
 En **Panel de empresa → Eventos**, habilita las temporadas que quieras ofrecer y elige el modo:

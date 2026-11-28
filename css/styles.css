@@ -1217,8 +1217,11 @@ textarea.pm-input { padding: 12px 14px; line-height: 1.5; resize: vertical; }
 .pd-gallery { min-width: 0; }
 .pd-main { position: relative; display: grid; place-items: center; aspect-ratio: 1 / .95; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #f8f9fb; }
 .pd-main:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
-.pd-main img { width: 100%; height: 100%; padding: 24px; object-fit: contain; animation: pd-in .25s ease-out; }
-.pd.is-toner .pd-main img { width: auto; height: auto; min-width: 0; min-height: 0; max-width: 72%; max-height: 72%; padding: 0; }
+.pd-main img { width: 100%; height: 100%; padding: 24px; object-fit: contain; animation: pd-in .25s ease-out; cursor: zoom-in; transition: transform .25s ease; }
+.pd-main img:focus-visible { outline: 3px solid var(--cyan); outline-offset: -3px; }
+.pd-main img.is-zoomed { transform: scale(1.5); cursor: zoom-out; }
+.pd.is-toner .pd-main img { width: auto; height: auto; min-width: 0; min-height: 0; max-width: 92%; max-height: 92%; padding: 0; }
+.pd-zoom-hint { position: absolute; right: 12px; bottom: 12px; padding: 4px 10px; border-radius: 99px; background: rgba(15, 44, 76, .75); color: #fff; font-size: 12px; pointer-events: none; }
 @keyframes pd-in { from { opacity: 0; } }
 .pd-placeholder { display: grid; place-items: center; width: 60%; aspect-ratio: 1; border-radius: 32px; }
 .pd-arrow { position: absolute; top: 50%; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--ink); transform: translateY(-50%); box-shadow: 0 4px 12px rgba(15, 44, 76, .12); }
