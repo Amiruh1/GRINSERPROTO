@@ -7,7 +7,14 @@
   const isHtmlPage = () => /\/paginas_html\//i.test(location.pathname);
   GR.appPath = (path) => `${isHtmlPage() ? '../' : ''}${path}`;
   GR.pagePath = (page) => `${isHtmlPage() ? '' : 'paginas_html/'}${page}`;
-  GR.assetPath = (path) => (/^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(path) || !isHtmlPage() ? path : `../${path}`);
+  GR.assetPath = (path) => {
+    const source = String(path || '');
+    if (/^https?:\/\/drive\.google\.com\//i.test(source)) {
+      const fileId = source.match(/[?&]id=([^&#]+)/i)?.[1] || source.match(/\/file\/d\/([^/?#]+)/i)?.[1];
+      if (fileId) return `https://lh3.googleusercontent.com/d/${encodeURIComponent(fileId)}=w1200`;
+    }
+    return (/^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(source) || !isHtmlPage()) ? source : `../${source}`;
+  };
 
   GR.read = (k, d) => {
     try { const v = JSON.parse(localStorage.getItem(PREFIX + k)); return v ?? d; } catch { return d; }
