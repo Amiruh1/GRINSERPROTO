@@ -862,7 +862,7 @@
       return;
     }
     eventSyncing = true;
-    renderEvents();
+    updateEventsSourceNote();
     try {
       if (!sheetsWriteKey) {
         const key = window.prompt('Ingresa la clave privada de Google Sheets para guardar los eventos:');
@@ -910,7 +910,7 @@
       saveEventConfiguration(GR.EVENTS, $('#event-mode').value, GR.MANUAL_EVENT_ID);
     });
     $('#event-manual').addEventListener('change', () => {
-      saveEventConfiguration(GR.EVENTS, $('#event-mode').value, $('#event-manual').value);
+      saveEventConfiguration(GR.EVENTS, 'manual', $('#event-manual').value);
     });
     $('#u-q').addEventListener('input', renderUsers);
     $('#u-refresh').addEventListener('click', loadUsers);
